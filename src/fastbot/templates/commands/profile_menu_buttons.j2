@@ -1,0 +1,8 @@
+[
+    {"text": "Изменить профиль", "callback_data": "edit_profile_{{ user_id }}"},
+    {"text": "Моя статистика", "callback_data": "stats_{{ user_id }}"},
+    {"text": "Помощь", "url": "https://example.com/help"}
+    {% if is_admin %},
+    {"text": "Админ-панель", "callback_data": "admin_panel"}
+    {% endif %}
+]

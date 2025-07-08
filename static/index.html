@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: var(--tg-theme-text-color, #000000);
+        }
+        button {
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        #data-display {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Mini App!</h1>
+        <p>Your Telegram Mini App is working!</p>
+        
+        <div>
+            <button id="main-button">Send Data to Bot</button>
+            <button id="close-button">Close App</button>
+        </div>
+        
+        <div id="data-display">
+            <h3>User Info:</h3>
+            <p id="user-data">Loading...</p>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        
+        // Развернуть приложение на весь экран
+        tg.expand();
+        
+        // Элементы интерфейса
+        const mainButton = document.getElementById('main-button');
+        const closeButton = document.getElementById('close-button');
+        const userDataElement = document.getElementById('user-data');
+        
+        // Показать данные пользователя
+        userDataElement.innerHTML = `
+            ID: ${tg.initDataUnsafe.user?.id || 'N/A'}<br>
+            Name: ${tg.initDataUnsafe.user?.first_name || ''} ${tg.initDataUnsafe.user?.last_name || ''}<br>
+            Username: @${tg.initDataUnsafe.user?.username || 'N/A'}
+        `;
+        
+        // Настройка главной кнопки
+        tg.MainButton.setText('SEND DATA').show();
+        tg.MainButton.onClick(() => {
+            const data = {
+                action: "submit",
+                timestamp: new Date().toISOString(),
+                user_id: tg.initDataUnsafe.user?.id
+            };
+            tg.sendData(JSON.stringify(data));
+        });
+        
+        // Обработчики кнопок
+        mainButton.addEventListener('click', () => {
+            const data = {
+                action: "custom_button",
+                message: "Hello from custom button!"
+            };
+            tg.sendData(JSON.stringify(data));
+        });
+        
+        closeButton.addEventListener('click', () => {
+            tg.close();
+        });
+        
+        // Показать кнопку "Назад"
+        tg.BackButton.show();
+        tg.BackButton.onClick(() => {
+            tg.close();
+        });
+    </script>
+</body>
+</html>

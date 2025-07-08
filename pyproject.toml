@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "tutor"
+version = "0.1.0"
+description = ""
+authors = ["Bararide <445467246r@gmail.com>"]
+readme = "README.md"
+
+packages = [{include = "src", from = "."}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+asyncio = "^3.4.3"
+aiogram = "^3.20.0.post0"
+celery = "^5.5.3"
+dotenv = "^0.9.9"
+redis = "^6.2.0"
+loguru = "^0.7.3"
+pytoniq-core = "^0.1.44"
+pytonconnect = "^0.3.2"
+pydantic = "^2.11.7"
+motor = "^3.7.1"
+jinja2 = "^3.1.6"
+markdown2 = "^2.5.3"
+telegram = "^0.0.1"
+aiogram-dialog = "^2.3.1"
+fastapi = "^0.115.14"
+uvicorn = "^0.35.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

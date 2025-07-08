@@ -1,0 +1,737 @@
+import asyncio
+from functools import partial
+import inspect
+from contextlib import suppress
+import json
+import os
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Type,
+    Union,
+    Tuple,
+    Awaitable,
+)
+
+from aiogram import F, Bot, Dispatcher, Router, types
+from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramAPIError
+from aiogram.filters import Command
+from aiogram.filters import BaseFilter
+from aiogram.types import Message, CallbackQuery, InlineQuery
+from aiogram.types.base import TelegramObject
+from aiogram.fsm.state import State
+
+from fastapi import FastAPI, WebSocket
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+
+from src.FastBotLib.logger.logger import Logger
+
+from src.FastBotLib.MiniApp import MiniAppConfig, MiniAppManager
+from src.FastBotLib.filters.state_filter import StateFilter
+from src.FastBotLib.DI import DependencyContainer
+from src.FastBotLib.configs.configs import HandlerConfig
+from src.FastBotLib.strategies.handler_strategy import HandlerStrategy
+
+
+class FastBotError(Exception):
+    """Базовый класс исключений для FastBot"""
+
+    pass
+
+
+class ConfigurationError(FastBotError):
+    """Ошибка в конфигурации бота"""
+
+    pass
+
+
+class DispatcherNotSetError(ConfigurationError):
+    """Ошибка: диспетчер не установлен"""
+
+    pass
+
+
+class BotNotSetError(ConfigurationError):
+    """Ошибка: бот не установлен"""
+
+    pass
+
+
+class FastBot:
+    def __init__(self, bot: Bot, dp: Dispatcher):
+        self.bot = bot
+        self.dp = dp
+        self._routers: List[Router] = []
+        self._default_router = Router(name="default_router")
+        self._shutdown_callbacks: List[Callable] = []
+        self._startup_callbacks: List[Callable] = []
+        self.dependency_container = DependencyContainer()
+        self.mini_app: Optional[MiniAppManager] = None
+        self.app: Optional[FastAPI] = None
+        self.handler_strategy = HandlerStrategy()
+
+        self.dp.include_router(self._default_router)
+
+    def add_dependency(self, key: str, value: Any) -> "FastBot":
+        self.dependency_container.register(key, value)
+        return self
+
+    def add_dependency_resolver(
+        self, type_: Type, resolver: Callable[[Any], Awaitable[Any]]
+    ) -> "FastBot":
+        self.dependency_container.register_resolver(type_, resolver)
+        return self
+
+    def get_dependency(self, key: str) -> Any:
+        return self.dependency_container._dependencies.get(key)
+
+    def setup_mini_app(self, config: MiniAppConfig) -> "FastBot":
+        """Setup Mini App after bot creation"""
+        self.mini_app = MiniAppManager(self.bot, config)
+        return self
+
+    async def start_polling(self, **kwargs):
+        Logger.info("Starting bot polling...")
+
+        try:
+            for callback in self._startup_callbacks:
+                if asyncio.iscoroutinefunction(callback):
+                    await callback(self)
+                else:
+                    callback(self)
+
+            await self.dp.start_polling(self.bot, **kwargs)
+        except Exception as e:
+            Logger.error(f"Error during bot polling: {e}", exc_info=e)
+            raise
+        finally:
+            for callback in self._shutdown_callbacks:
+                with suppress(Exception):
+                    if asyncio.iscoroutinefunction(callback):
+                        await callback(self)
+                    else:
+                        callback(self)
+
+    async def run_web_server(self, port: int = 8000):
+        if not self.app:
+            Logger.error("Cannot start web server: FastAPI app not configured")
+            return
+
+        Logger.info(f"Starting FastAPI server on port {port}")
+        config = uvicorn.Config(self.app, host="0.0.0.0", port=port, log_level="info")
+        server = uvicorn.Server(config)
+        await server.serve()
+
+    async def start_with_webhook(
+        self, webhook_url: str, host: str = "0.0.0.0", port: int = 8000
+    ) -> None:
+        """Start bot with webhook and Mini App server"""
+        if not self.mini_app:
+            raise ConfigurationError("Mini App not configured")
+
+        await self.bot.set_webhook(webhook_url)
+
+        config = uvicorn.Config(
+            self.mini_app.app, host=host, port=port, log_level="info"
+        )
+        server = uvicorn.Server(config)
+
+        Logger.info(f"Starting bot with webhook at {webhook_url}")
+        await server.serve()
+
+    def add_startup_callback(self, callback: Callable) -> "FastBot":
+        self._startup_callbacks.append(callback)
+        return self
+
+    def add_shutdown_callback(self, callback: Callable) -> "FastBot":
+        self._shutdown_callbacks.append(callback)
+        return self
+
+    async def send_message(
+        self, chat_id: Union[int, str], text: str, **kwargs
+    ) -> Optional[Message]:
+        try:
+            return await self.bot.send_message(chat_id=chat_id, text=text, **kwargs)
+        except TelegramAPIError as e:
+            Logger.error(f"Failed to send message to {chat_id}: {e}")
+            return None
+
+    @property
+    def default_router(self) -> Router:
+        return self._default_router
+
+
+class FastBotBuilder:
+    def __init__(self):
+        self._bot: Optional[Bot] = None
+        self._dp: Optional[Dispatcher] = None
+        self._routers: List[Router] = []
+        self._message_middlewares: List[Callable] = []
+        self._callback_query_middlewares: List[Callable] = []
+        self._inline_query_middlewares: List[Callable] = []
+        self._handlers: List[HandlerConfig] = []
+        self._default_router = Router(name="default_router")
+        self._error_handler: Optional[Callable] = None
+        self._default_commands: List[Tuple[str, str]] = []
+        self._startup_callbacks: List[Callable] = []
+        self._shutdown_callbacks: List[Callable] = []
+        self._is_fsm_storage_set = False
+        self._default_rate_limit: Optional[float] = None
+        self.dependency_container = DependencyContainer()
+        self._mini_app_config: Optional[MiniAppConfig] = None
+        self._mini_app_manager: Optional[MiniAppManager] = None
+        self.handler_strategy = HandlerStrategy()
+
+    def set_bot(self, bot: Bot) -> "FastBotBuilder":
+        """Установить объект бота"""
+        self._bot = bot
+        Logger.info(f"Bot set with token: {bot.token[:5]}...{bot.token[-5:]}")
+        return self
+
+    def set_dispatcher(self, dp: Dispatcher) -> "FastBotBuilder":
+        """Установить диспетчер"""
+        self._dp = dp
+        Logger.info("Dispatcher set")
+        return self
+
+    def add_mini_app(self, config: MiniAppConfig) -> "FastBotBuilder":
+        """Add Telegram Mini App configuration"""
+        self._mini_app_config = config
+        return self
+
+    def add_middleware(
+        self, middleware: Callable, event_type: Type[TelegramObject] = Message
+    ) -> "FastBotBuilder":
+        """
+        Добавить middleware с указанием типа события
+
+        :param middleware: Функция middleware
+        :param event_type: Тип события (Message, CallbackQuery, InlineQuery)
+        """
+        middleware_name = getattr(middleware, "__name__", str(middleware))
+
+        if event_type == Message:
+            self._message_middlewares.append(middleware)
+            Logger.info(f"Message middleware added: {middleware_name}")
+        elif event_type == CallbackQuery:
+            self._callback_query_middlewares.append(middleware)
+            Logger.info(f"Callback query middleware added: {middleware_name}")
+        elif event_type == InlineQuery:
+            self._inline_query_middlewares.append(middleware)
+            Logger.info(f"Inline query middleware added: {middleware_name}")
+        else:
+            Logger.warning(f"Unsupported event type for middleware: {event_type}")
+
+        return self
+
+    def add_router(self, router: Router) -> "FastBotBuilder":
+        self._routers.append(router)
+        Logger.info(f"Router added: {router.name or str(router)}")
+        return self
+
+    def add_dependency(self, key: str, value: Any) -> "FastBotBuilder":
+        self.dependency_container.register(key, value)
+        Logger.info(f"Dependency added: {key}")
+        return self
+
+    def add_dependency_resolver(
+        self, type_: Type, resolver: Callable[[Any], Awaitable[Any]]
+    ) -> "FastBotBuilder":
+        self.dependency_container.register_resolver(type_, resolver)
+        return self
+
+    def add_reply_menu_handler(
+        self,
+        handler: Callable,
+        buttons: List[str],
+        state: Optional[Any] = None,
+        router: Optional[Router] = None,
+        dependencies: Optional[Dict[str, Any]] = None,
+    ) -> "FastBotBuilder":
+        """
+        Добавить обработчик для reply-меню с поддержкой FSM состояний
+
+        :param handler: Функция-обработчик
+        :param buttons: Список кнопок, на которые должен реагировать обработчик
+        :param state: Состояние FSM
+        :param router: Роутер
+        :param dependencies: Зависимости
+        """
+        filters = [F.text.in_(buttons)]
+
+        if state is not None:
+            filters.append(state)
+
+        return self.add_handler(
+            handler, *filters, router=router, dependencies=dependencies
+        )
+
+    def add_handler(
+        self,
+        handler: Callable,
+        *filters: Union[BaseFilter, State],
+        event_type: Type[TelegramObject] = Message,
+        router: Optional[Router] = None,
+        dependencies: Optional[Dict[str, Any]] = None,
+    ) -> "FastBotBuilder":
+        handler_name = self._get_handler_name(handler)
+
+        base_filters = []
+        state_filters = []
+
+        for f in filters:
+            if isinstance(f, State):
+                state_filters.append(f)
+            else:
+                base_filters.append(f)
+
+        if state_filters:
+            state_filter = StateFilter(state_filters[0])
+            for s in state_filters[1:]:
+                state_filter = state_filter | StateFilter(s)
+            base_filters.append(state_filter)
+
+        handler_config = HandlerConfig(
+            handler=handler,
+            filters=base_filters,
+            event_type=event_type,
+            router=router,
+            dependencies=dependencies or {},
+        )
+
+        self._handlers.append(handler_config)
+        Logger.info(
+            f"Handler added: {handler_name} with {len(base_filters)} filters for {event_type.__name__}"
+        )
+        return self
+
+    def add_state_command_handler(
+        self,
+        command: Union[str, List[str]],
+        handler: Callable,
+        description: Optional[str] = None,
+        state: Optional[Any] = None,
+        router: Optional[Router] = None,
+    ) -> "FastBotBuilder":
+        """
+        Добавить обработчик команды с автоматической обработкой FSM состояния
+
+        :param command: Команда или список команд
+        :param handler: Функция-обработчик
+        :param description: Описание команды
+        :param state: Состояние FSM (если нужно)
+        :param router: Роутер
+        """
+
+        async def wrapped_handler(message: types.Message, state: FSMContext, **kwargs):
+            if state is not None:
+                await state.set_state(state)
+            return await handler(message, state, **kwargs)
+
+        return self.add_command_handler(command, wrapped_handler, description, router)
+
+    def add_async_state_command_handler(
+        self,
+        command: Union[str, List[str]],
+        handler: Callable,
+        description: Optional[str] = None,
+        state: Optional[Any] = None,
+        router: Optional[Router] = None,
+    ) -> "FastBotBuilder":
+        """
+        Добавить асинхронный обработчик команды с автоматической обработкой FSM состояния
+
+        :param command: Команда или список команд
+        :param handler: Функция-обработчик
+        :param description: Описание команды
+        :param state: Состояние FSM
+        :param router: Роутер
+        """
+
+        async def wrapped_handler(message: types.Message, state: FSMContext, **kwargs):
+            if state is not None:
+                await state.set_state(state)
+            asyncio.create_task(handler(message, state, **kwargs))
+
+        return self.add_command_handler(command, wrapped_handler, description, router)
+
+    def add_command_handler(
+        self,
+        command: Union[str, List[str]],
+        handler: Callable,
+        description: Optional[str] = None,
+        router: Optional[Router] = None,
+    ) -> "FastBotBuilder":
+        commands = [command] if isinstance(command, str) else command
+
+        original_handler = handler.func if hasattr(handler, "func") else handler
+        handler_name = getattr(original_handler, "__name__", str(original_handler))
+
+        if description and isinstance(command, str):
+            self._default_commands.append((command, description))
+            Logger.info(f"Command '{command}' added with description: {description}")
+
+        Logger.info(
+            f"Registering command handler: {handler_name} for commands: {commands}"
+        )
+        return self.add_handler(handler, Command(commands=commands), router=router)
+
+    def add_callback_query_handler(
+        self, handler: Callable, *filters: BaseFilter, router: Optional[Router] = None
+    ) -> "FastBotBuilder":
+        """
+        Добавить обработчик для callback query
+
+        :param handler: Функция-обработчик
+        :param filters: Фильтры для обработчика
+        :param router: Конкретный роутер (если None, используется дефолтный)
+        """
+        return self.add_handler(
+            handler, *filters, event_type=CallbackQuery, router=router
+        )
+
+    def add_inline_query_handler(
+        self, handler: Callable, *filters: BaseFilter, router: Optional[Router] = None
+    ) -> "FastBotBuilder":
+        """
+        Добавить обработчик для inline query
+
+        :param handler: Функция-обработчик
+        :param filters: Фильтры для обработчика
+        :param router: Конкретный роутер (если None, используется дефолтный)
+        """
+        return self.add_handler(
+            handler, *filters, event_type=InlineQuery, router=router
+        )
+
+    def set_error_handler(self, handler: Callable) -> "FastBotBuilder":
+        """
+        Установить обработчик ошибок
+
+        :param handler: Функция-обработчик ошибок
+        """
+        self._error_handler = handler
+        Logger.info(f"Error handler set: {handler.__name__}")
+        return self
+
+    def add_startup_callback(self, callback: Callable) -> "FastBotBuilder":
+        """
+        Добавить функцию, которая будет вызвана при запуске бота
+
+        :param callback: Функция обратного вызова
+        """
+        self._startup_callbacks.append(callback)
+        Logger.info(f"Startup callback added: {callback.__name__}")
+        return self
+
+    def add_shutdown_callback(self, callback: Callable) -> "FastBotBuilder":
+        """
+        Добавить функцию, которая будет вызвана при остановке бота
+
+        :param callback: Функция обратного вызова
+        """
+        self._shutdown_callbacks.append(callback)
+        Logger.info(f"Shutdown callback added: {callback.__name__}")
+        return self
+
+    def get_router(self, name: str) -> Router:
+        """
+        Получить роутер по имени
+
+        :param name: Имя роутера
+        :return: Объект роутера
+        """
+        for router in self._routers:
+            if router.name == name:
+                return router
+        raise ValueError(f"Router with name '{name}' not found")
+
+    def set_default_rate_limit(self, rate_limit: float) -> "FastBotBuilder":
+        """
+        Установить глобальное ограничение частоты запросов
+
+        :param rate_limit: Ограничение в секундах
+        """
+        self._default_rate_limit = rate_limit
+        Logger.info(f"Default rate limit set to {rate_limit} seconds")
+        return self
+
+    async def _setup_commands(self, bot: Bot):
+        """Настроить команды бота в меню команд"""
+        if not self._default_commands:
+            return
+
+        from aiogram.types import BotCommand
+
+        commands = [
+            BotCommand(command=cmd, description=desc)
+            for cmd, desc in self._default_commands
+        ]
+
+        try:
+            await bot.set_my_commands(commands)
+            Logger.info(
+                f"Bot commands set: {', '.join(cmd for cmd, _ in self._default_commands)}"
+            )
+        except Exception as e:
+            Logger.error(f"Failed to set bot commands: {e}")
+
+    def _get_handler_name(self, handler: Callable) -> str:
+        """Получить имя обработчика с учетом partial и других оберток"""
+        try:
+            if isinstance(handler, partial):
+                func = handler.func
+                while isinstance(func, partial):
+                    func = func.func
+                return (
+                    f"partial_{func.__name__}"
+                    if hasattr(func, "__name__")
+                    else "partial"
+                )
+
+            if hasattr(handler, "__name__"):
+                return handler.__name__
+
+            if hasattr(handler, "func"):
+                func = handler.func
+                while hasattr(func, "func"):
+                    func = func.func
+                return func.__name__ if hasattr(func, "__name__") else "wrapped"
+
+            return str(handler)
+        except Exception:
+            return "unknown_handler"
+
+    async def _resolve_dependencies(
+        self, event: TelegramObject, dependencies: dict
+    ) -> dict:
+        """Разрешает все зависимости, включая динамические"""
+        resolved = await self.dependency_container.resolve(event, dependencies)
+        return resolved
+
+    def _wrap_handler(self, handler: Callable, dependencies: dict) -> Callable:
+        original_handler = handler.func if isinstance(handler, partial) else handler
+
+        async def wrapped_handler(event: TelegramObject, **kwargs):
+            try:
+                sig = inspect.signature(original_handler)
+
+                resolved_deps = await self._resolve_dependencies(event, dependencies)
+
+                bound_args = {}
+
+                if isinstance(event, Message):
+                    if "message" in sig.parameters:
+                        bound_args["message"] = event
+                    elif "msg" in sig.parameters:
+                        bound_args["msg"] = event
+                elif isinstance(event, CallbackQuery):
+                    if "callback" in sig.parameters:
+                        bound_args["callback"] = event
+                    elif "callback_query" in sig.parameters:
+                        bound_args["callback_query"] = event
+                    elif "query" in sig.parameters:
+                        bound_args["query"] = event
+                elif isinstance(event, InlineQuery):
+                    if "inline_query" in sig.parameters:
+                        bound_args["inline_query"] = event
+                    elif "query" in sig.parameters:
+                        bound_args["query"] = event
+
+                if "state" in sig.parameters and "state" in kwargs:
+                    bound_args["state"] = kwargs["state"]
+
+                for name, param in sig.parameters.items():
+                    if name in bound_args:
+                        continue
+
+                    if param.annotation != param.empty:
+                        for dep in resolved_deps.values():
+                            if isinstance(dep, param.annotation):
+                                bound_args[name] = dep
+                                break
+
+                    elif name in resolved_deps:
+                        bound_args[name] = resolved_deps[name]
+                    elif name in kwargs:
+                        bound_args[name] = kwargs[name]
+
+                if isinstance(handler, partial):
+                    for k, v in handler.keywords.items():
+                        if k not in bound_args and k in sig.parameters:
+                            bound_args[k] = v
+
+                if inspect.iscoroutinefunction(original_handler):
+                    return await original_handler(**bound_args)
+                else:
+                    return original_handler(**bound_args)
+
+            except Exception as e:
+                Logger.error(
+                    f"Error in wrapped handler {self._get_handler_name(handler)}: {e}"
+                )
+                raise
+
+        wrapped_handler.__name__ = self._get_handler_name(handler)
+        wrapped_handler._original_handler = original_handler
+
+        return wrapped_handler
+
+    def _setup_mini_app_handlers(self):
+        """Setup handlers for Mini App interaction"""
+        if not self._mini_app_manager:
+            return
+
+        self.add_command_handler("app", self._handle_app_command, "Open Mini App")
+
+        self.add_handler(self._handle_web_app_data, F.content_type == "web_app_data")
+
+    async def _handle_app_command(self, message: types.Message):
+        """Handler for /app command to open Mini App"""
+        if not self._mini_app_manager:
+            await message.answer("Mini App not configured")
+            return
+
+        button = self._mini_app_manager.get_webapp_button()
+        await message.answer(
+            "Open Mini App:",
+            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[[button]]),
+        )
+
+    async def _handle_web_app_data(self, message: types.Message):
+        """Handler for data received from Mini App"""
+        try:
+            data = json.loads(message.web_app_data.data)
+            Logger.info(f"Received data from Mini App: {data}")
+
+            response = f"Received: {data.get('action', 'unknown')}"
+            await message.answer(response)
+        except Exception as e:
+            Logger.error(f"Error processing Mini App data: {e}")
+            await message.answer("Error processing data from Mini App")
+
+    def build(self) -> "FastBot":
+        """Построить и настроить бота с применением всех установленных параметров"""
+        if not self._bot:
+            raise BotNotSetError("Bot is not set")
+
+        if not self._dp:
+            self._dp = Dispatcher()
+            Logger.info("Created default Dispatcher")
+
+        bot_instance = FastBot(self._bot, self._dp)
+
+        if self._mini_app_config:
+            Logger.info("Creating FastAPI app for MiniApp...")
+
+            app = FastAPI()
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
+
+            if self._mini_app_config.static_dir and os.path.exists(
+                self._mini_app_config.static_dir
+            ):
+                Logger.info(
+                    f"Mounting static directory: {self._mini_app_config.static_dir}"
+                )
+                app.mount(
+                    "/static",
+                    StaticFiles(directory=self._mini_app_config.static_dir),
+                    "static",
+                )
+
+            if (
+                self._mini_app_config.webhook_path
+                and self._mini_app_config.webhook_handler
+            ):
+
+                @app.post(self._mini_app_config.webhook_path)
+                async def webhook_handler(data: dict):
+                    return await self._mini_app_config.webhook_handler(data)
+
+            if self._mini_app_config.ws_handler:
+
+                @app.websocket("/ws")
+                async def websocket_endpoint(websocket: WebSocket):
+                    await self._mini_app_config.ws_handler(websocket)
+
+            bot_instance.app = app
+            Logger.info("FastAPI app created and configured")
+
+            self._setup_mini_app_handlers()
+
+        for key in self.dependency_container._dependencies:
+            bot_instance.add_dependency(
+                key, self.dependency_container._dependencies[key]
+            )
+
+        for type_, resolver in self.dependency_container._resolvers.items():
+            bot_instance.add_dependency_resolver(type_, resolver)
+
+        self._dp.include_router(self._default_router)
+
+        for middleware in self._message_middlewares:
+            self._dp.message.middleware.register(middleware)
+
+        for middleware in self._callback_query_middlewares:
+            self._dp.callback_query.middleware.register(middleware)
+
+        for middleware in self._inline_query_middlewares:
+            self._dp.inline_query.middleware.register(middleware)
+
+        for router in self._routers:
+            self._dp.include_router(router)
+
+        for handler_config in self._handlers:
+            router = handler_config.router or self._default_router
+
+            wrapped_handler = self._wrap_handler(
+                handler_config.handler,
+                {
+                    **self.dependency_container._dependencies,
+                    **handler_config.dependencies,
+                },
+            )
+
+            self.handler_strategy.register(
+                router,
+                wrapped_handler,
+                handler_config.filters,
+                handler_config.event_type,
+            )
+
+        if self._error_handler:
+            self._dp.errors.register(self._error_handler)
+
+        for callback in self._startup_callbacks:
+            bot_instance.add_startup_callback(callback)
+
+        for callback in self._shutdown_callbacks:
+            bot_instance.add_shutdown_callback(callback)
+
+        if self._default_commands:
+            bot_instance.add_startup_callback(
+                lambda bot_instance: asyncio.create_task(
+                    self._setup_commands(bot_instance.bot)
+                )
+            )
+
+        Logger.info("Bot successfully built")
+        return bot_instance
+
+
+class BotBuilder(FastBotBuilder):
+    """Алиас для сохранения обратной совместимости"""
+
+    pass

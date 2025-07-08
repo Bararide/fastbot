@@ -1,0 +1,11 @@
+{% block content %}
+{{ "Добро пожаловать!" | bold }}
+
+{{ "Это ваш первый шаг в нашем боте" | italic }}
+
+{% if user %}
+Ваш профиль: {{ user.username | default("Аноним") }}
+Дата регистрации: {{ user.registered_at | format_date }}
+{% endif %}
+
+{% endblock %}

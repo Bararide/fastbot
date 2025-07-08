@@ -1,0 +1,9 @@
+{% if task_id %}
+    {% if task.ready() %}
+        Результат: {{ task.get() }}
+    {% else %}
+        Задача еще выполняется. Статус: {{ task.status }}
+    {% endif %}
+{% else %}
+    Укажите ID задачи: /status <task_id>
+{% endif %}

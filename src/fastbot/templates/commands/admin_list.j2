@@ -1,0 +1,10 @@
+{% if not user.is_admin %}
+    ⛔ Недостаточно прав
+{% elif not admins %}
+    Нет администраторов
+{% else %}
+    👑 Администраторы:
+    {% for admin in admins %}
+    {{ admin.first_name }} (@{{ admin.username }})
+    {% endfor %}
+{% endif %}

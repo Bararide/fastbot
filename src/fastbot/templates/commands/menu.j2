@@ -1,0 +1,12 @@
+{% set menu_items = [
+    "Профиль",
+    "Настройки",
+    {"text": "Поделиться контактом", "request_contact": true},
+    {"text": "Отправить локацию", "request_location": true}
+] %}
+
+{% set reply_markup = generate_reply_keyboard(menu_items, row_width=2) %}
+
+{{ "Главное меню" | bold }}
+
+Выберите действие:
