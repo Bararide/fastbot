@@ -1,5 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from models.user import User
+from models.user_stats import UserStats
 from src.FastBotLib.logger.logger import Logger
 from typing import Optional
 
@@ -11,6 +12,7 @@ class AuthService:
         self.users = self.db["users"]
 
     async def get_user(self, user_id: int) -> Optional[User]:
+        Logger.info(f"Getting user: {user_id}")
         user = await self.users.find_one({"id": user_id})
         return User(**user) if user else None
 
@@ -31,5 +33,5 @@ class AuthService:
         result = await self.users.delete_one({"id": user_id})
         return result.deleted_count > 0
 
-    async def get_user_stats(self, user_id: int):
-        pass
+    async def get_user_stats(self, user_id: int) -> Optional[UserStats]:
+        return UserStats(id=user_id)

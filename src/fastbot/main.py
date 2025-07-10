@@ -27,7 +27,8 @@ from middleware.error_middleware import error_handling_middleware
 from middleware.auth_middleware import AuthMiddleware
 from services.auth_service import AuthService
 from models.user import User
-from resolvers.user_resolver import resolve_user
+from models.user_stats import UserStats
+from resolvers.user_resolver import resolve_user, resolve_user_stats
 from filters.confirm_menu import handle_conf_menu_reply_buttons, show_confirmation_menu
 from filters.feedback_menu import handle_feedback_menu_reply_buttons, show_feedback_menu
 from states.states import MenuState
@@ -79,7 +80,7 @@ async def main():
     auth_service = AuthService(mongo_uri, getenv("DATABASE_NAME"))
     auth_middleware = AuthMiddleware(auth_service)
     template_engine_service = TemplateEngine(
-        template_dirs=["templates", "src/tutor/templates"],
+        template_dirs=["templates", "src/fastbot/templates"],
         auto_reload=True,
         extensions=["jinja2.ext.i18n"],
         cache_size=1000,
@@ -116,6 +117,9 @@ async def main():
     bot_builder.add_dependency("template_engine", template_engine_service)
     bot_builder.add_dependency_resolver(
         User, partial(resolve_user, auth_service=auth_service)
+    )
+    bot_builder.add_dependency_resolver(
+        UserStats, partial(resolve_user_stats, auth_service=auth_service)
     )
 
     command_handlers = [

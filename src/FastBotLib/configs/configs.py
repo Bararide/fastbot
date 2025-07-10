@@ -22,11 +22,9 @@ class HandlerConfig:
         event_type: Type[TelegramObject] = Message,
         router: Optional[Router] = None,
         dependencies: Optional[Dict[str, Any]] = None,
-        dependency_resolvers: Dict[Type, Callable[[Any], Awaitable[Any]]] = {},
     ):
         self.handler = handler
         self.filters = filters or []
         self.event_type = event_type
         self.router = router
         self.dependencies = dependencies or {}
-        self.dependency_resolvers = dependency_resolvers or {}

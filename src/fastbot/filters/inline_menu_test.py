@@ -7,6 +7,7 @@ from aiogram.enums import ParseMode
 from src.FastBotLib.logger.logger import Logger
 from src.FastBotLib.engine.templates.template_engine import TemplateEngine
 from models.user import User
+from models.user_stats import UserStats
 from services.auth_service import AuthService
 
 
@@ -27,31 +28,36 @@ async def show_buttons(message: types.Message):
     await message.answer("Выберите действие:", reply_markup=builder.as_markup())
 
 
-async def callback_handler(callback: types.CallbackQuery) -> Any:
-    await callback.answer(f"Вы нажали на кнопку: {callback.data}")
+async def callback_handler(
+    callback: types.CallbackQuery, user: User, auth: AuthService
+) -> Any:
+    await callback.answer(f"Пользователь: {user.id}")
     return await callback.message.answer(f"Выбрано: {callback.data}")
 
 
 async def callback_get_profile_handler(
     callback: types.CallbackQuery,
     template_engine: TemplateEngine,
-    auth: AuthService,
     user: User,
+    stats: UserStats,
 ) -> Any:
     try:
         Logger.info("callback_get_profile_handler")
 
         if not user:
             Logger.error(f"User not found for ID: {callback.from_user.id}")
-            await callback.answer(
-                await template_engine.render_template(
-                    "commands/no_registration.j2", user=user
+            await callback.message.answer(
+                **(
+                    await template_engine.render_template(
+                        "commands/no_registration.j2",
+                        user=user,
+                        parse_mode=ParseMode.HTML,
+                    )
                 )
             )
             return
 
         Logger.info(f"{user.id}")
-        stats = await auth.get_user_stats(user.id)
 
         buttons = await template_engine.load_buttons_from_template(
             "commands/profile_menu_buttons.j2", user_id=user.id, is_admin=user.is_admin
