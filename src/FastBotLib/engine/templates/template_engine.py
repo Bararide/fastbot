@@ -62,8 +62,8 @@ class TemplateEngine:
     def __init__(
         self,
         template_dirs: Union[str, List[str]],
-        extensions: Optional[List[str]] = None,
-        auto_reload: bool = False,
+        extensions: Optional[List[str]] = ["jinja2.ext.i18n"],
+        auto_reload: bool = True,
         cache_size: int = 400,
         enable_async: bool = True,
         **env_options,

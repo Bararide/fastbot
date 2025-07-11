@@ -9,6 +9,7 @@ from functools import partial
 
 from fastapi import WebSocket
 
+from src.fastbot.services.db_service import DBService
 from src.FastBotLib.engine.templates.template_engine import TemplateEngine
 from src.FastBotLib.FastBot import FastBotBuilder, MiniAppConfig
 from handlers import (
@@ -77,13 +78,11 @@ async def main():
     admin_router = Router(name="admin_router")
 
     mongo_uri = getenv("MONGO_URI")
-    auth_service = AuthService(mongo_uri, getenv("DATABASE_NAME"))
+    database_service = DBService(mongo_uri, getenv("DATABASE_NAME"))
+    auth_service = AuthService(database_service)
     auth_middleware = AuthMiddleware(auth_service)
     template_engine_service = TemplateEngine(
-        template_dirs=["templates", "src/fastbot/templates"],
-        auto_reload=True,
-        extensions=["jinja2.ext.i18n"],
-        cache_size=1000,
+        template_dirs=["templates", "src/fastbot/templates"]
     )
 
     admin_router.message.middleware(auth_middleware)
@@ -112,6 +111,7 @@ async def main():
         .add_mini_app(mini_app_config)
     )
 
+    bot_builder.add_dependency("database_service", database_service)
     bot_builder.add_dependency("auth_service", auth_service)
     bot_builder.add_dependency("auth_middleware", auth_middleware)
     bot_builder.add_dependency("template_engine", template_engine_service)
@@ -148,17 +148,8 @@ async def main():
     for cmd, handler, desc, state in state_handlers:
         bot_builder.add_async_state_command_handler(cmd, handler, desc, state)
 
-    reply_menu_handlers = [
-        (handle_feedback_menu_reply_buttons, ["Да", "Нет"], MenuState.WAITING_FEEDBACK),
-        (
-            handle_conf_menu_reply_buttons,
-            ["Да", "Нет", "Отмена"],
-            MenuState.WAITING_CONFIRMATION,
-        ),
-    ]
-
-    for handler, buttons, state in reply_menu_handlers:
-        bot_builder.add_reply_menu_handler(handler, buttons, state)
+    bot_builder.add_reply_menu_handler(handle_feedback_menu_reply_buttons)
+    bot_builder.add_reply_menu_handler(handle_conf_menu_reply_buttons)
 
     bot_builder.add_handler(
         process_numbers, F.text.regexp(r"^-?\d+\.?\d*\s-?\d+\.?\d*$")

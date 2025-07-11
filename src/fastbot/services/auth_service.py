@@ -1,4 +1,5 @@
 from motor.motor_asyncio import AsyncIOMotorClient
+from services.db_service import DBService
 from models.user import User
 from models.user_stats import UserStats
 from src.FastBotLib.logger.logger import Logger
@@ -6,10 +7,9 @@ from typing import Optional
 
 
 class AuthService:
-    def __init__(self, mongo_uri: str, db_name: str):
-        self.client = AsyncIOMotorClient(mongo_uri)
-        self.db = self.client[db_name]
-        self.users = self.db["users"]
+    def __init__(self, db_service: DBService):
+        self.db_service = db_service
+        self.users = self.db_service.db["users"]
 
     async def get_user(self, user_id: int) -> Optional[User]:
         Logger.info(f"Getting user: {user_id}")

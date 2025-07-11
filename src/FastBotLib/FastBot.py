@@ -249,13 +249,14 @@ class FastBotBuilder:
     def add_reply_menu_handler(
         self,
         handler: Callable,
-        buttons: List[str],
+        buttons: List[str] = None,
         state: Optional[Any] = None,
         router: Optional[Router] = None,
         dependencies: Optional[Dict[str, Any]] = None,
     ) -> "FastBotBuilder":
         """
-        Добавить обработчик для reply-меню с поддержкой FSM состояний
+        Добавить обработчик для reply-меню с поддержкой FSM состояний.
+        Автоматически учитывает параметры декоратора @menu_handler, если он применен.
 
         :param handler: Функция-обработчик
         :param buttons: Список кнопок, на которые должен реагировать обработчик
@@ -263,14 +264,57 @@ class FastBotBuilder:
         :param router: Роутер
         :param dependencies: Зависимости
         """
-        filters = [F.text.in_(buttons)]
+        menu_handler_info = getattr(handler, "_menu_handler_info", None)
 
-        if state is not None:
-            filters.append(state)
+        final_buttons = buttons
+        final_state = state
+
+        if menu_handler_info:
+            final_buttons = menu_handler_info.get("buttons", buttons)
+            final_state = menu_handler_info.get("state", state)
+
+        if not final_buttons:
+            raise ValueError(
+                "Buttons list must be specified either through parameter or @menu_handler decorator"
+            )
+
+        filters = [F.text.in_(final_buttons)]
+
+        if final_state is not None:
+            if isinstance(final_state, list):
+                state_filter = StateFilter(final_state[0])
+                for s in final_state[1:]:
+                    state_filter = state_filter | StateFilter(s)
+                filters.append(state_filter)
+            else:
+                filters.append(StateFilter(final_state))
 
         return self.add_handler(
             handler, *filters, router=router, dependencies=dependencies
         )
+
+    def add_registered_menu_handler(self, handler: Callable) -> "FastBotBuilder":
+        """
+        Добавить обработчик меню, зарегистрированный через @register_menu
+
+        :param handler: Функция-обработчик с декоратором @register_menu
+        """
+        menu_info = getattr(handler, "_registered_menu", None)
+        if not menu_info:
+            raise ValueError("Handler must be decorated with @register_menu")
+
+        if menu_info["command"]:
+            self.add_command_handler(menu_info["name"], handler, menu_info["desc"])
+
+        menu_handler_info = getattr(handler, "_menu_handler_info", None)
+        if menu_handler_info:
+            self.add_reply_menu_handler(
+                handler,
+                buttons=menu_handler_info.get("buttons"),
+                state=menu_handler_info.get("state"),
+            )
+
+        return self
 
     def add_handler(
         self,
