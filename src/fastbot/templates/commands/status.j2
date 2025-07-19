@@ -1,9 +1,14 @@
-{% if task_id %}
-    {% if task.ready() %}
-        Результат: {{ task.get() }}
-    {% else %}
-        Задача еще выполняется. Статус: {{ task.status }}
-    {% endif %}
+{% if exists %}
+✅ Статус задачи: <b>{{ task_status }}</b>
+{% if task_id %}ID: <code>{{ task_id }}</code>{% endif %}
+
+{% if task_result %}
+Результат:
+<pre>{{ task_result }}</pre>
+{% endif %}
 {% else %}
-    Укажите ID задачи: /status <task_id>
+❌ Задача не найдена
+{% if error %}
+Ошибка: {{ error }}
+{% endif %}
 {% endif %}

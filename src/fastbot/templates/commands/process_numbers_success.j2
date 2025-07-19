@@ -1,0 +1,10 @@
+{% block content %}
+✅ {{ "Задача сложения запущена!" | bold }}
+
+🔢 Числа: {{ num1 }} + {{ num2 }}
+📌 ID задачи: {{ task_id | code }}
+
+{% if error %}
+❌ {{ "Ошибка:" | bold }} {{ error }}
+{% endif %}
+{% endblock %}

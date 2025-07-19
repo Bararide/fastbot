@@ -1,24 +1,16 @@
 {% block content %}
-{{ ("Профиль пользователя: " + user.username) | bold }}
+👤 {{ ("Профиль: " + user.username) | bold }}
 
-{% if user.is_admin %}
-🛡 {{ "Вы администратор" | underline }}
-{% endif %}
-
-📅 Зарегистрирован: {{ user.registered_at | format_date("%d.%m.%Y") }}
-{% if user.last_seen %}
-🕒 Последний вход: {{ user.last_seen | format_date("%H:%M %d.%m.%Y") }}
+{% if is_admin %}
+🛡 {{ "Администратор" | italic }}
 {% endif %}
 
 📊 Статистика:
-- Сообщений: {{ stats.messages | default(0) }}
-- Команд: {{ stats.commands | default(0) }}
-- Активность: {{ stats.activity | default(0) }}%
+- Сообщений: {{ stats.messages }}
+- Завершено задач: {{ stats.completed_tasks }}
+- Активных задач: {{ stats.active_tasks }}
 
-{% if stats.top_commands %}
-🔥 Топ команд:
-{% for cmd in stats.top_commands %}
-{{ loop.index }}. {{ cmd.name }} - {{ cmd.count }} {{ "раз" | plural(cmd.count) }}
-{% endfor %}
+{% if error_message %}
+❌ Ошибка: {{ error_message }}
 {% endif %}
 {% endblock %}

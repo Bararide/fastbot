@@ -151,6 +151,63 @@ class TemplateEngine:
             }
         )
 
+    async def reply(
+        self,
+        message: Message,
+        template_name: str,
+        context: Optional[dict] = None,
+        parse_mode: Optional[str] = None,
+        reply_markup: Optional[Union[InlineKeyboardMarkup, ReplyKeyboardMarkup]] = None,
+        buttons_template: Optional[str] = None,
+        buttons_context: Optional[dict] = None,
+        row_width: int = 2,
+        **kwargs,
+    ) -> Any:
+        context = context or {}
+        buttons_context = buttons_context or {}
+
+        response = await self.render_template(
+            template_name, parse_mode=parse_mode, **context
+        )
+
+        if buttons_template:
+            buttons = await self.load_buttons_from_template(
+                buttons_template, **buttons_context
+            )
+            response["reply_markup"] = await self.generate_inline_keyboard(
+                buttons, row_width=row_width
+            )
+
+        if reply_markup:
+            response["reply_markup"] = reply_markup
+
+        return await message.answer(**response)
+
+    async def render(
+        self,
+        template_name: str,
+        context: Optional[dict] = None,
+        buttons_template: Optional[str] = None,
+        buttons_context: Optional[dict] = None,
+        row_width: int = 2,
+        **kwargs,
+    ) -> dict:
+        """Упрощенный рендеринг с автоматической загрузкой кнопок"""
+        context = context or {}
+        buttons_context = buttons_context or {}
+
+        response = await self.render_template(template_name, **context)
+
+        if buttons_template:
+            buttons = await self.load_buttons_from_template(
+                buttons_template, **buttons_context
+            )
+            response["reply_markup"] = await self.generate_inline_keyboard(
+                buttons, row_width=row_width
+            )
+
+        return response
+
     async def render_template(
         self,
         template_name: str,
@@ -192,6 +249,9 @@ class TemplateEngine:
             raise TemplateEngineError(
                 f"Unexpected error in template {template_name}: {e}"
             ) from e
+
+    async def answer(self, message: Message, response) -> Any:
+        return await message.answer(**response)
 
     async def render_message(
         self,

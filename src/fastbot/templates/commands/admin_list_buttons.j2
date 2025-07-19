@@ -1,0 +1,7 @@
+[
+    {"text": "Назад", "callback_data": "back_to_profile_{{ user_id }}"}
+    {% if is_admin %}
+    {"text": "Добавить", "callback_data": "add_admin"},
+    {"text": "Удалить", "callback_data": "remove_admin"}
+    {% endif %}
+]

@@ -1,10 +1,16 @@
-{% if not user.is_admin %}
-    ⛔ Недостаточно прав
-{% elif not admins %}
-    Нет администраторов
+{% block content %}
+{% if is_admin %}
+👑 {{ "Список администраторов" | bold }}
+
+{% if admins %}
+{% for admin in admins %}
+• {{ admin.username }} (ID: {{ admin.id }})
+{% endfor %}
 {% else %}
-    👑 Администраторы:
-    {% for admin in admins %}
-    {{ admin.first_name }} (@{{ admin.username }})
-    {% endfor %}
+ℹ️ Нет других администраторов
 {% endif %}
+
+{% else %}
+⛔ {{ error_message }}
+{% endif %}
+{% endblock %}

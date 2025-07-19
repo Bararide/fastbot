@@ -1,33 +1,69 @@
-from typing import Any
-from aiogram import types
 from decimal import Decimal
-from aiogram import F
+from typing import Any, Dict
 
+from aiogram import types
+from aiogram.enums import ParseMode
+
+from src.FastBotLib.engine.templates.template_engine import TemplateEngine
+from src.FastBotLib.decorators.with_template_engine import (
+    with_auto_reply,
+    with_template_engine,
+)
 from src.config.celery_utils import run_task
+from src.FastBotLib.logger.logger import Logger
 
 
-async def hello_handler(message: types.Message, name: str) -> Any:
-    return await message.answer(f"Hello, {name}!")
+@with_template_engine
+@with_auto_reply("commands/hello.j2")
+async def hello_handler(
+    message: types.Message, name: str, template_engine: TemplateEngine
+) -> Any:
+    return {"context": {"name": name}}
 
 
-async def process_numbers(message: types.Message):
+@with_template_engine
+@with_auto_reply(
+    template_name="commands/process_numbers_success.j2",
+    buttons_template="commands/process_numbers_buttons.j2",
+)
+async def process_numbers(
+    message: types.Message, template_engine: TemplateEngine, logger: Logger
+) -> Dict[str, Any]:
     try:
-        num1, num2 = map(Decimal, message.text.split())
+        parts = message.text.split()
+        if len(parts) != 2:
+            raise ValueError("Требуется ровно два числа через пробел")
+
+        num1, num2 = map(Decimal, parts)
         task_id = run_task("tasks.calculate_sum", float(num1), float(num2))
 
-        await message.answer(
-            f"Задача сложения запущена!\n"
-            f"Числа: {num1} + {num2}\n"
-            f"ID задачи: {task_id}\n"
-            f"Проверить статус: /status {task_id}"
-        )
+        context = {
+            "num1": f"{num1:.2f}",
+            "num2": f"{num2:.2f}",
+            "task_id": str(task_id),
+            "error": None,
+        }
+
+        return {
+            "context": context,
+            "buttons_context": {"task_id": task_id},
+            "parse_mode": ParseMode.HTML,
+        }
+
     except Exception as e:
-        await message.answer(f"Ошибка: {str(e)}")
+        logger.error(f"Error processing numbers: {str(e)}", exc_info=True)
+        return {
+            "context": {"error": str(e), "numbers": None, "task_id": None},
+            "parse_mode": ParseMode.HTML,
+        }
 
 
-async def handle_invalid_input(message: types.Message):
+@with_template_engine
+@with_auto_reply("commands/invalid_input.j2")
+async def handle_invalid_input(
+    message: types.Message, template_engine: TemplateEngine
+) -> Dict[str, Any]:
     if message.text.startswith("/"):
-        return
-    await message.answer(
-        "Пожалуйста, введите два числа через пробел (например: 5 3.14)"
-    )
+        return {"skip": True}
+
+    return {"context": {"command_example": "5 3.14"}, "parse_mode": ParseMode.MARKDOWN}
