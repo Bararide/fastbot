@@ -9,6 +9,18 @@ from functools import partial
 
 from fastapi import WebSocket
 
+from src.fastbot.resolvers.context_resolvers import (
+    access_denied_context,
+    admin_list_context,
+    app_context,
+    error_message_context,
+    profile_buttons_context,
+    profile_context,
+    profile_error_context,
+    registration_context,
+    registration_error_context,
+)
+from src.FastBotLib.engine.context.context_engine import ContextEngine
 from src.fastbot.services.db_service import DBService
 from src.FastBotLib.engine.templates.template_engine import TemplateEngine
 from src.FastBotLib.FastBot import FastBotBuilder, MiniAppConfig
@@ -84,6 +96,7 @@ async def main():
     template_engine_service = TemplateEngine(
         template_dirs=["templates", "src/fastbot/templates"]
     )
+    context_engine_service = ContextEngine()
 
     admin_router.message.middleware(auth_middleware)
     admin_router.callback_query.middleware(auth_middleware)
@@ -115,11 +128,26 @@ async def main():
     bot_builder.add_dependency("auth_service", auth_service)
     bot_builder.add_dependency("auth_middleware", auth_middleware)
     bot_builder.add_dependency("template_engine", template_engine_service)
+    bot_builder.add_dependency("context_engine", context_engine_service)
     bot_builder.add_dependency_resolver(
         User, partial(resolve_user, auth_service=auth_service)
     )
     bot_builder.add_dependency_resolver(
         UserStats, partial(resolve_user_stats, auth_service=auth_service)
+    )
+
+    bot_builder.add_contexts(
+        [
+            profile_context,
+            error_message_context,
+            profile_buttons_context,
+            registration_context,
+            admin_list_context,
+            access_denied_context,
+            registration_error_context,
+            profile_error_context,
+            app_context,
+        ]
     )
 
     command_handlers = [

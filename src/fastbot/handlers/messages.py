@@ -7,6 +7,7 @@ from aiogram.enums import ParseMode
 from src.FastBotLib.engine.templates.template_engine import TemplateEngine
 from src.FastBotLib.decorators.with_template_engine import (
     with_auto_reply,
+    with_parse_mode,
     with_template_engine,
 )
 from src.config.celery_utils import run_task
@@ -24,10 +25,11 @@ async def hello_handler(
 @with_template_engine
 @with_auto_reply(
     template_name="commands/process_numbers_success.j2",
-    buttons_template="commands/process_numbers_buttons.j2",
+    buttons_template="buttons/process_numbers_buttons.j2",
 )
+@with_parse_mode(ParseMode.HTML)
 async def process_numbers(
-    message: types.Message, template_engine: TemplateEngine, logger: Logger
+    message: types.Message, template_engine: TemplateEngine
 ) -> Dict[str, Any]:
     try:
         parts = message.text.split()
@@ -44,26 +46,20 @@ async def process_numbers(
             "error": None,
         }
 
-        return {
-            "context": context,
-            "buttons_context": {"task_id": task_id},
-            "parse_mode": ParseMode.HTML,
-        }
+        return {"context": context, "buttons_context": {"task_id": task_id}}
 
     except Exception as e:
-        logger.error(f"Error processing numbers: {str(e)}", exc_info=True)
-        return {
-            "context": {"error": str(e), "numbers": None, "task_id": None},
-            "parse_mode": ParseMode.HTML,
-        }
+        Logger.error(f"Error processing numbers: {str(e)}", exc_info=True)
+        return {"context": {"error": str(e), "numbers": None, "task_id": None}}
 
 
 @with_template_engine
 @with_auto_reply("commands/invalid_input.j2")
+@with_parse_mode(ParseMode.MARKDOWN)
 async def handle_invalid_input(
     message: types.Message, template_engine: TemplateEngine
 ) -> Dict[str, Any]:
     if message.text.startswith("/"):
         return {"skip": True}
 
-    return {"context": {"command_example": "5 3.14"}, "parse_mode": ParseMode.MARKDOWN}
+    return {"context": {"command_example": "5 3.14"}}

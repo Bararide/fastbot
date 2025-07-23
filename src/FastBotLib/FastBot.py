@@ -30,6 +30,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
+from src.FastBotLib.engine.context.context_engine import ContextEngine
 from src.FastBotLib.logger.logger import Logger
 
 from src.FastBotLib.MiniApp import MiniAppConfig, MiniAppManager
@@ -505,6 +506,31 @@ class FastBotBuilder:
         self._default_rate_limit = rate_limit
         Logger.info(f"Default rate limit set to {rate_limit} seconds")
         return self
+
+    def add_context(self, context_func: Callable) -> "FastBotBuilder":
+        context_engine = self._get_or_create_context_engine()
+
+        context_name = (
+            getattr(context_func, "_context_name", None) or context_func.__name__
+        )
+
+        context_engine.add(context_name, context_func)
+        Logger.info(f"Context registered: {context_name}")
+
+        return self
+
+    def add_contexts(self, context_funcs: List[Callable]) -> "FastBotBuilder":
+        for func in context_funcs:
+            self.add_context(func)
+        return self
+
+    def _get_or_create_context_engine(self) -> ContextEngine:
+        if "context_engine" in self.dependency_container._dependencies:
+            return self.dependency_container._dependencies["context_engine"]
+
+        context_engine = ContextEngine()
+        self.add_dependency("context_engine", context_engine)
+        return context_engine
 
     async def _setup_commands(self, bot: Bot):
         """Настроить команды бота в меню команд"""

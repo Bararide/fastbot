@@ -1,6 +1,5 @@
 from typing import Union, Optional
 from aiogram.types import Message, CallbackQuery
-from aiogram.types.base import TelegramObject
 
 from src.FastBotLib.logger.logger import Logger
 from models.user import User

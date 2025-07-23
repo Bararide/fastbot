@@ -1,14 +1,22 @@
 from datetime import datetime
 from typing import Any
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types
 from aiogram.enums import ParseMode
 
-from src.FastBotLib.logger.logger import Logger
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from src.FastBotLib.engine.context.context_engine import ContextEngine
 from src.FastBotLib.engine.templates.template_engine import TemplateEngine
+from src.FastBotLib.logger.logger import Logger
 from models.user import User
 from models.user_stats import UserStats
 from services.auth_service import AuthService
+from src.FastBotLib.decorators.with_template_engine import (
+    with_template_engine,
+    with_parse_mode,
+    with_context,
+    with_auto_reply,
+)
 
 
 async def show_buttons(message: types.Message):
@@ -35,44 +43,37 @@ async def callback_handler(
     return await callback.message.answer(f"Выбрано: {callback.data}")
 
 
+@with_template_engine
+@with_parse_mode(parse_mode=ParseMode.HTML)
+@with_auto_reply("commands/profile.j2", "buttons/profile_menu_buttons.j2")
 async def callback_get_profile_handler(
     callback: types.CallbackQuery,
     template_engine: TemplateEngine,
+    context_engine: ContextEngine,
     user: User,
     stats: UserStats,
-) -> Any:
+) -> dict:
     try:
-        Logger.info("callback_get_profile_handler")
-
         if not user:
             Logger.error(f"User not found for ID: {callback.from_user.id}")
-            await callback.message.answer(
-                **(
-                    await template_engine.render_template(
-                        "commands/no_registration.j2",
-                        user=user,
-                        parse_mode=ParseMode.HTML,
-                    )
-                )
-            )
-            return
+            return {
+                "template_name": "commands/no_registration.j2",
+                "message": callback.message,
+                "user": user,
+            }
 
-        Logger.info(f"{user.id}")
-
-        buttons = await template_engine.load_buttons_from_template(
-            "commands/profile_menu_buttons.j2", user_id=user.id, is_admin=user.is_admin
-        )
-
-        response = await template_engine.render_response(
-            "commands/profile.j2",
-            context={"user": user, "stats": stats, "current_date": datetime.now()},
-            parse_mode=ParseMode.HTML,
-            reply_markup=await template_engine.generate_inline_keyboard(
-                buttons=buttons, row_width=2
-            ),
-        )
-
-        await callback.message.answer(**response)
+        return {
+            "context": await context_engine.get("profile", user=user, stats=stats),
+            "buttons_context": await context_engine.get("profile_buttons", user=user),
+            "row_width": 2,
+        }
     except Exception as e:
-        Logger.error(f"Template error in callback_get_profile_handler: {e}")
-        await callback.answer("Произошла ошибка при формировании профиля.")
+        Logger.error(f"Error in cmd_profile: {e}")
+        return {
+            "context": {
+                "user": user,
+                "stats": {"messages": 0, "completed_tasks": 0, "active_tasks": 0},
+                "is_admin": user.is_admin,
+                "error_message": "Произошла ошибка при загрузке статистики",
+            }
+        }

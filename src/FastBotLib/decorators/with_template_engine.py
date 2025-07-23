@@ -2,6 +2,8 @@ from functools import wraps
 from aiogram.enums import ParseMode
 from aiogram import types
 
+from src.FastBotLib.engine.templates.template_engine import TemplateEngine
+
 
 def apply_decorators(*decorators):
     """Применяет несколько декораторов последовательно"""
@@ -18,37 +20,99 @@ def with_template_engine(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         if "template_engine" not in kwargs:
-            raise ValueError("TemplateEngine not found!")
+            for arg in args:
+                if isinstance(arg, TemplateEngine):
+                    kwargs["template_engine"] = arg
+                    break
+            else:
+                raise ValueError("TemplateEngine не найден!")
         return await func(*args, **kwargs)
 
     return wrapper
+
+
+def with_parse_mode(parse_mode: str = ParseMode.HTML):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            result = await func(*args, **kwargs)
+            if isinstance(result, dict):
+                result["parse_mode"] = parse_mode
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+def with_context(**default_context):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            result = await func(*args, **kwargs)
+
+            if not isinstance(result, dict):
+                return result
+
+            auto_context = {}
+            for arg in args:
+                if isinstance(arg, types.Message):
+                    auto_context["message"] = arg
+
+            result["context"] = {
+                **default_context,
+                **auto_context,
+                **result.get("context", {}),
+            }
+            return result
+
+        return wrapper
+
+    return decorator
 
 
 def with_auto_reply(template_name, buttons_template=None):
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            message = kwargs.get("message")
-            if message is None:
-                for arg in args:
-                    if isinstance(arg, types.Message):
-                        message = arg
-                        break
+            message = None
+            callback = None
+
+            for arg in args:
+                if isinstance(arg, types.Message):
+                    message = arg
+                elif isinstance(arg, types.CallbackQuery):
+                    callback = arg
+
+            if message is None and callback is None:
+                message = kwargs.get("message")
+                callback = kwargs.get("callback")
+
+            if callback is not None and message is None:
+                message = callback.message
 
             if message is None:
-                raise ValueError("Message object not found in arguments")
+                raise ValueError(
+                    "Message or CallbackQuery object not found in arguments"
+                )
 
             template_engine = kwargs["template_engine"]
 
-            context = {
-                "user": kwargs.get("user"),
-                "message": message,
-                **{
-                    k: v
-                    for k, v in kwargs.items()
-                    if k not in ["template_engine", "message"]
-                },
-            }
+            func_result = await func(*args, **kwargs)
+
+            if isinstance(func_result, dict) and "context" in func_result:
+                context = func_result["context"]
+            else:
+                context = {
+                    "user": kwargs.get("user"),
+                    "message": message,
+                    "callback": callback,
+                    **{
+                        k: v
+                        for k, v in kwargs.items()
+                        if k not in ["template_engine", "message", "callback"]
+                    },
+                }
 
             reply_params = {
                 "message": message,
@@ -59,6 +123,8 @@ def with_auto_reply(template_name, buttons_template=None):
             }
 
             if buttons_template:
+                if isinstance(func_result, dict) and "buttons_context" in func_result:
+                    reply_params["buttons_context"] = func_result["buttons_context"]
                 reply_params["buttons_template"] = buttons_template
 
             return await template_engine.reply(**reply_params)

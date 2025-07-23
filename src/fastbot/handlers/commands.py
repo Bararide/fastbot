@@ -1,10 +1,14 @@
 from datetime import datetime
 import os
+from typing import Any, Dict
 from aiogram import types
 from aiogram.enums import ParseMode
 
+from src.FastBotLib.engine.context.context_engine import ContextEngine
 from src.FastBotLib.decorators.with_template_engine import (
     with_auto_reply,
+    with_context,
+    with_parse_mode,
     with_template_engine,
 )
 from src.FastBotLib.builders.inline_menu_builder import InlineMenuBuilder
@@ -18,20 +22,24 @@ from celery.result import AsyncResult
 
 
 @with_template_engine
-@with_auto_reply("commands/start.j2", buttons_template="commands/start_menu_buttons.j2")
+@with_auto_reply("commands/start.j2", buttons_template="buttons/start_menu_buttons.j2")
 async def cmd_start(
-    message: types.Message, user: User, template_engine: TemplateEngine
+    message: types.Message,
+    user: User,
+    template_engine: TemplateEngine,
+    context_engine: ContextEngine,
 ):
     pass
 
 
-async def cmd_app(message: types.Message):
+async def cmd_app(message: types.Message, context_engine: ContextEngine):
+    context = await context_engine.get("app")
     await message.answer(
-        "Открыть Mini App",
+        context.get("text", "Открыть Mini App"),
         reply_markup=InlineMenuBuilder()
         .add_row(
             {
-                "text": "Open",
+                "text": context.get("button_text", "Open"),
                 "web_app": f"https://{os.getenv('WEBAPP_DOMAIN')}/mini-app",
             }
         )
@@ -41,43 +49,36 @@ async def cmd_app(message: types.Message):
 
 @with_template_engine
 @with_auto_reply("commands/status.j2")
-async def cmd_status(message: types.Message, template_engine: TemplateEngine):
+@with_parse_mode(ParseMode.HTML)
+async def cmd_status(
+    message: types.Message,
+    template_engine: TemplateEngine,
+    context_engine: ContextEngine,
+):
     try:
         parts = message.text.split()
         task_id = parts[1] if len(parts) > 1 else None
-
         task = AsyncResult(task_id) if task_id else None
-        task_status = task.status if task else "not_found"
-        task_result = task.result if task else None
 
         return {
-            "context": {
-                "task_id": task_id,
-                "task_status": task_status,
-                "task_result": str(task_result) if task_result else None,
-                "error": None,
-                "exists": task is not None,
-            },
-            "parse_mode": ParseMode.HTML,
+            "context": await context_engine.get(
+                "status", task_id=task_id, task=task, exists=task is not None
+            )
         }
-
     except Exception as e:
         return {
-            "context": {
-                "task_id": None,
-                "task_status": "error",
-                "task_result": None,
-                "error": str(e),
-                "exists": False,
-            },
-            "parse_mode": ParseMode.HTML,
+            "context": await context_engine.get("error_message", error_message=str(e))
         }
 
 
 @with_template_engine
 @with_auto_reply("commands/register.j2")
+@with_parse_mode(ParseMode.HTML)
 async def cmd_register(
-    message: types.Message, template_engine: TemplateEngine, auth_service: AuthService
+    message: types.Message,
+    template_engine: TemplateEngine,
+    auth_service: AuthService,
+    context_engine: ContextEngine,
 ):
     user = message.from_user
     try:
@@ -92,94 +93,76 @@ async def cmd_register(
         )
 
         return {
-            "context": {
-                "success": True,
-                "error": None,
-                "user": new_user,
-            }
+            "context": await context_engine.get(
+                "registration", user=new_user, success=True
+            )
         }
-
     except ValueError as e:
-        return {"context": {"success": False, "error": str(e), "user": None}}
+        return {"context": await context_engine.get("registration_error", error=str(e))}
 
 
 @with_template_engine
 @with_auto_reply(
     template_name="commands/profile.j2",
-    buttons_template="commands/profile_menu_buttons.j2",
+    buttons_template="buttons/profile_menu_buttons.j2",
 )
 async def cmd_profile(
     message: types.Message,
-    template_engine: TemplateEngine,
     user: User,
     stats: UserStats,
-):
+    context_engine: ContextEngine,
+    template_engine: TemplateEngine,
+) -> Dict[str, Any]:
     try:
         return {
-            "context": {
-                "user": user,
-                "stats": {
-                    "messages": stats.get("messages", 0),
-                    "completed_tasks": stats.get("completed_tasks", 0),
-                    "active_tasks": stats.get("active_tasks", 0),
-                },
-                "is_admin": user.is_admin,
-                "error_message": None,
-            },
-            "buttons_context": {"user_id": user.id, "is_admin": user.is_admin},
-            "parse_mode": ParseMode.HTML,
+            "context": await context_engine.get("profile", user=user, stats=stats),
+            "buttons_context": await context_engine.get("profile_buttons", user=user),
             "row_width": 2,
         }
-
     except Exception as e:
         Logger.error(f"Error in cmd_profile: {e}")
         return {
-            "context": {
-                "user": user,
-                "stats": {"messages": 0, "completed_tasks": 0, "active_tasks": 0},
-                "is_admin": user.is_admin,
-                "error_message": "Произошла ошибка при загрузке статистики",
-            },
-            "parse_mode": ParseMode.HTML,
+            "context": await context_engine.get(
+                "profile_error", user=user, error_message="Ошибка загрузки профиля"
+            )
         }
 
 
 @with_template_engine
 @with_auto_reply(
     template_name="commands/admin_list.j2",
-    buttons_template="commands/admin_list_buttons.j2",
+    buttons_template="buttons/admin_list_buttons.j2",
 )
+@with_context(current_date=datetime.now().strftime("%d.%m.%Y %H:%M"))
+@with_parse_mode(ParseMode.HTML)
 async def cmd_admin_list(
     message: types.Message,
     template_engine: TemplateEngine,
     user: User,
     auth_service: AuthService,
+    context_engine: ContextEngine,
 ):
     try:
         if not user.is_admin:
             return {
-                "context": {
-                    "error_message": "⛔ Доступ только для администраторов",
-                    "has_access": False,
-                }
+                "context": await context_engine.get(
+                    "access_denied", message="⛔ Доступ только для администраторов"
+                )
             }
 
         admins = await auth_service.users.find({"is_admin": True}).to_list(None)
 
         return {
-            "context": {
-                "admins": admins or [],
-                "has_access": True,
-                "current_date": datetime.now().strftime("%d.%m.%Y %H:%M"),
-            },
-            "buttons_context": {"user_id": user.id, "is_admin": True},
+            "context": await context_engine.get("admin_list", admins=admins or []),
+            "buttons_context": await context_engine.get(
+                "admin_buttons", user_id=user.id
+            ),
         }
-
     except Exception as e:
         Logger.error(f"Error in cmd_admin_list: {str(e)}")
         return {
-            "context": {
-                "error_message": "⚠️ Ошибка при загрузке списка администраторов",
-                "has_access": user.is_admin,
-            }
+            "context": await context_engine.get(
+                "admin_list_error",
+                error_message="⚠️ Ошибка при загрузке списка администраторов",
+            )
         }
