@@ -89,8 +89,7 @@ async def main():
     main_router = Router(name="main_router")
     admin_router = Router(name="admin_router")
 
-    mongo_uri = getenv("MONGO_URI")
-    database_service = DBService(mongo_uri, getenv("DATABASE_NAME"))
+    database_service = DBService(getenv("MONGO_URI"), getenv("DATABASE_NAME"))
     auth_service = AuthService(database_service)
     auth_middleware = AuthMiddleware(auth_service)
     template_engine_service = TemplateEngine(
@@ -129,12 +128,8 @@ async def main():
     bot_builder.add_dependency("auth_middleware", auth_middleware)
     bot_builder.add_dependency("template_engine", template_engine_service)
     bot_builder.add_dependency("context_engine", context_engine_service)
-    bot_builder.add_dependency_resolver(
-        User, partial(resolve_user, auth_service=auth_service)
-    )
-    bot_builder.add_dependency_resolver(
-        UserStats, partial(resolve_user_stats, auth_service=auth_service)
-    )
+    bot_builder.add_dependency_resolver(User, resolve_user)
+    bot_builder.add_dependency_resolver(UserStats, resolve_user_stats)
 
     bot_builder.add_contexts(
         [

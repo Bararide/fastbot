@@ -4,17 +4,17 @@ from aiogram.types import Message, CallbackQuery
 from src.FastBotLib.logger.logger import Logger
 from models.user import User
 from models.user_stats import UserStats
-from services import auth_service
+from services.auth_service import AuthService
 
 
 async def resolve_user(
-    event: Union[Message, CallbackQuery], auth_service: auth_service.AuthService
+    event: Union[Message, CallbackQuery], auth_service: AuthService
 ) -> Optional[User]:
     return await auth_service.get_user(event.from_user.id)
 
 
 async def resolve_user_stats(
-    event: Union[Message, CallbackQuery], auth_service: auth_service.AuthService
+    event: Union[Message, CallbackQuery], auth_service: AuthService
 ) -> Optional[UserStats]:
     try:
         return await auth_service.get_user_stats(event.from_user.id)
