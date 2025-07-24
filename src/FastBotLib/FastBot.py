@@ -4,6 +4,7 @@ import inspect
 from contextlib import suppress
 import json
 import os
+import sys
 from typing import (
     Any,
     Callable,
@@ -294,25 +295,46 @@ class FastBotBuilder:
             handler, *filters, router=router, dependencies=dependencies
         )
 
-    def add_registered_menu_handler(self, handler: Callable) -> "FastBotBuilder":
-        """
-        Добавить обработчик меню, зарегистрированный через @register_menu
+    def add_reply_menu(
+        self,
+        menu_handler: Callable,
+        *button_handlers: Callable,
+        router: Optional[Router] = None,
+        dependencies: Optional[Dict[str, Any]] = None,
+    ) -> "FastBotBuilder":
+        if not hasattr(menu_handler, "_menu_meta"):
+            raise ValueError("Menu handler must be decorated with @menu decorator")
 
-        :param handler: Функция-обработчик с декоратором @register_menu
-        """
-        menu_info = getattr(handler, "_registered_menu", None)
-        if not menu_info:
-            raise ValueError("Handler must be decorated with @register_menu")
+        menu_meta = menu_handler._menu_meta
 
-        if menu_info["command"]:
-            self.add_command_handler(menu_info["name"], handler, menu_info["desc"])
+        self.add_async_state_command_handler(
+            command=menu_meta["command"],
+            handler=menu_handler,
+            description=menu_meta["description"],
+            state=menu_meta["state"],
+            router=router,
+        )
 
-        menu_handler_info = getattr(handler, "_menu_handler_info", None)
-        if menu_handler_info:
-            self.add_reply_menu_handler(
-                handler,
-                buttons=menu_handler_info.get("buttons"),
-                state=menu_handler_info.get("state"),
+        for button_handler in button_handlers:
+            if not hasattr(button_handler, "_menu_handler_meta"):
+                raise ValueError(
+                    "Button handler must be decorated with @menu_handler decorator"
+                )
+
+            handler_meta = button_handler._menu_handler_meta
+
+            if handler_meta["state"] != menu_meta["state"]:
+                Logger.error(
+                    f"Button handler state ({handler_meta['state']}) "
+                    f"does not match menu state ({menu_meta['state']})"
+                )
+
+            self.add_handler(
+                button_handler,
+                F.text.in_(handler_meta["buttons"]),
+                StateFilter(handler_meta["state"]),
+                router=router,
+                dependencies=dependencies,
             )
 
         return self
@@ -466,43 +488,22 @@ class FastBotBuilder:
         return self
 
     def add_startup_callback(self, callback: Callable) -> "FastBotBuilder":
-        """
-        Добавить функцию, которая будет вызвана при запуске бота
-
-        :param callback: Функция обратного вызова
-        """
         self._startup_callbacks.append(callback)
         Logger.info(f"Startup callback added: {callback.__name__}")
         return self
 
     def add_shutdown_callback(self, callback: Callable) -> "FastBotBuilder":
-        """
-        Добавить функцию, которая будет вызвана при остановке бота
-
-        :param callback: Функция обратного вызова
-        """
         self._shutdown_callbacks.append(callback)
         Logger.info(f"Shutdown callback added: {callback.__name__}")
         return self
 
     def get_router(self, name: str) -> Router:
-        """
-        Получить роутер по имени
-
-        :param name: Имя роутера
-        :return: Объект роутера
-        """
         for router in self._routers:
             if router.name == name:
                 return router
         raise ValueError(f"Router with name '{name}' not found")
 
     def set_default_rate_limit(self, rate_limit: float) -> "FastBotBuilder":
-        """
-        Установить глобальное ограничение частоты запросов
-
-        :param rate_limit: Ограничение в секундах
-        """
         self._default_rate_limit = rate_limit
         Logger.info(f"Default rate limit set to {rate_limit} seconds")
         return self
@@ -553,7 +554,6 @@ class FastBotBuilder:
             Logger.error(f"Failed to set bot commands: {e}")
 
     def _get_handler_name(self, handler: Callable) -> str:
-        """Получить имя обработчика с учетом partial и других оберток"""
         try:
             if isinstance(handler, partial):
                 func = handler.func
@@ -581,7 +581,6 @@ class FastBotBuilder:
     async def _resolve_dependencies(
         self, event: TelegramObject, dependencies: dict
     ) -> dict:
-        """Разрешает все зависимости, включая динамические"""
         resolved = await self.dependency_container.resolve(event, dependencies)
         return resolved
 
@@ -654,7 +653,6 @@ class FastBotBuilder:
         return wrapped_handler
 
     def _setup_mini_app_handlers(self):
-        """Setup handlers for Mini App interaction"""
         if not self._mini_app_manager:
             return
 
@@ -663,7 +661,6 @@ class FastBotBuilder:
         self.add_handler(self._handle_web_app_data, F.content_type == "web_app_data")
 
     async def _handle_app_command(self, message: types.Message):
-        """Handler for /app command to open Mini App"""
         if not self._mini_app_manager:
             await message.answer("Mini App not configured")
             return
@@ -675,7 +672,6 @@ class FastBotBuilder:
         )
 
     async def _handle_web_app_data(self, message: types.Message):
-        """Handler for data received from Mini App"""
         try:
             data = json.loads(message.web_app_data.data)
             Logger.info(f"Received data from Mini App: {data}")
@@ -687,7 +683,6 @@ class FastBotBuilder:
             await message.answer("Error processing data from Mini App")
 
     def build(self) -> "FastBot":
-        """Построить и настроить бота с применением всех установленных параметров"""
         if not self._bot:
             raise BotNotSetError("Bot is not set")
 

@@ -150,10 +150,12 @@ async def cmd_admin_list(
                 )
             }
 
-        admins = await auth_service.users.find({"is_admin": True}).to_list(None)
-
         return {
-            "context": await context_engine.get("admin_list", admins=admins or []),
+            "context": await context_engine.get(
+                "admin_list",
+                admins=await auth_service.users.find({"is_admin": True}).to_list(None)
+                or [],
+            ),
             "buttons_context": await context_engine.get(
                 "admin_buttons", user_id=user.id
             ),

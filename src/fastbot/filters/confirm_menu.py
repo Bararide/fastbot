@@ -1,11 +1,17 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from src.FastBotLib.decorators.reply_menu_decorator import menu_handler
+from src.FastBotLib.decorators.reply_menu_decorator import menu, menu_handler
 from src.FastBotLib.logger.logger import Logger
 from src.FastBotLib.builders.reply_menu_builder import ReplyMenuBuilder
 from states.states import MenuState
 
 
+@menu(
+    name="confirm",
+    desc="Меню подтверждения действия",
+    state=MenuState.WAITING_CONFIRMATION,
+    command="confirm",
+)
 async def show_confirmation_menu(message: types.Message, state: FSMContext):
     keyboard = (
         ReplyMenuBuilder()

@@ -163,21 +163,8 @@ async def main():
     for cmd, handler, desc in command_handlers:
         bot_builder.add_command_handler(cmd, handler, desc)
 
-    state_handlers = [
-        ("feedback", show_feedback_menu, "Меню фидбека", MenuState.WAITING_FEEDBACK),
-        (
-            "confirm",
-            show_confirmation_menu,
-            "Меню подтверждения",
-            MenuState.WAITING_CONFIRMATION,
-        ),
-    ]
-
-    for cmd, handler, desc, state in state_handlers:
-        bot_builder.add_async_state_command_handler(cmd, handler, desc, state)
-
-    bot_builder.add_reply_menu_handler(handle_feedback_menu_reply_buttons)
-    bot_builder.add_reply_menu_handler(handle_conf_menu_reply_buttons)
+    bot_builder.add_reply_menu(show_feedback_menu, handle_feedback_menu_reply_buttons)
+    bot_builder.add_reply_menu(show_confirmation_menu, handle_conf_menu_reply_buttons)
 
     bot_builder.add_handler(
         process_numbers, F.text.regexp(r"^-?\d+\.?\d*\s-?\d+\.?\d*$")

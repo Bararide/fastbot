@@ -1,11 +1,16 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from src.FastBotLib.decorators.reply_menu_decorator import menu_handler
-from src.FastBotLib.logger.logger import Logger
 from src.FastBotLib.builders.reply_menu_builder import ReplyMenuBuilder
+from src.FastBotLib.decorators.reply_menu_decorator import menu, menu_handler
 from states.states import MenuState
 
 
+@menu(
+    name="feedback",
+    desc="Меню фидбека",
+    state=MenuState.WAITING_FEEDBACK,
+    command="feedback",
+)
 async def show_feedback_menu(message: types.Message, state: FSMContext):
     keyboard = ReplyMenuBuilder.simple_menu("Да", "Нет")
     await state.set_state(MenuState.WAITING_FEEDBACK)
@@ -14,9 +19,7 @@ async def show_feedback_menu(message: types.Message, state: FSMContext):
 
 @menu_handler(buttons=["Да", "Нет"], state=MenuState.WAITING_FEEDBACK)
 async def handle_feedback_menu_reply_buttons(message: types.Message, state: FSMContext):
-    Logger.info("IN handle_feedback_menu_reply_buttons")
     text = message.text
-
     if text == "Да":
         await message.answer(
             "Спасибо за фидбек! 😊", reply_markup=types.ReplyKeyboardRemove()
