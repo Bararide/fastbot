@@ -5,16 +5,15 @@ from aiogram.enums import ParseMode
 
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from src.FastBotLib.engine.context.context_engine import ContextEngine
-from src.FastBotLib.engine.templates.template_engine import TemplateEngine
-from src.FastBotLib.logger.logger import Logger
-from models.user import User
-from models.user_stats import UserStats
-from services.auth_service import AuthService
-from src.FastBotLib.decorators.with_template_engine import (
+from FastBot.engine import ContextEngine
+from FastBot.engine import TemplateEngine
+from FastBot.logger import Logger
+from models import User
+from models import UserStats
+from services import AuthService
+from FastBot.decorators import (
     with_template_engine,
     with_parse_mode,
-    with_context,
     with_auto_reply,
 )
 

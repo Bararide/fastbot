@@ -1,9 +1,9 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from src.FastBotLib.decorators.reply_menu_decorator import menu, menu_handler
-from src.FastBotLib.logger.logger import Logger
-from src.FastBotLib.builders.reply_menu_builder import ReplyMenuBuilder
-from states.states import MenuState
+from FastBot.decorators import menu, menu_handler
+from FastBot.logger import Logger
+from FastBot.builders import ReplyMenuBuilder
+from states import MenuState
 
 
 @menu(

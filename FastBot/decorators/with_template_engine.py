@@ -2,12 +2,10 @@ from functools import wraps
 from aiogram.enums import ParseMode
 from aiogram import types
 
-from src.FastBotLib.engine.templates.template_engine import TemplateEngine
+from FastBot.engine import TemplateEngine
 
 
 def apply_decorators(*decorators):
-    """Применяет несколько декораторов последовательно"""
-
     def wrapper(f):
         for decorator in reversed(decorators):
             f = decorator(f)

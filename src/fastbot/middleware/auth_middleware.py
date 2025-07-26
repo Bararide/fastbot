@@ -1,7 +1,7 @@
 from aiogram import types
 from aiogram.dispatcher.middlewares.base import BaseMiddleware
 from typing import Callable, Dict, Any
-from services.auth_service import AuthService
+from services import AuthService
 
 
 class AuthMiddleware(BaseMiddleware):

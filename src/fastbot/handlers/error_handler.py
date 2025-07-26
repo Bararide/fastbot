@@ -1,4 +1,4 @@
-from src.FastBotLib.logger.logger import Logger
+from FastBot.logger import Logger
 from typing import Any
 
 

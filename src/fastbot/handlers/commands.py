@@ -4,19 +4,17 @@ from typing import Any, Dict
 from aiogram import types
 from aiogram.enums import ParseMode
 
-from src.FastBotLib.engine.context.context_engine import ContextEngine
-from src.FastBotLib.decorators.with_template_engine import (
+from FastBot.decorators import (
     with_auto_reply,
     with_context,
     with_parse_mode,
     with_template_engine,
 )
-from src.FastBotLib.builders.inline_menu_builder import InlineMenuBuilder
-from src.FastBotLib.engine.templates.template_engine import TemplateEngine
-from src.FastBotLib.logger.logger import Logger
-from models.user import User
-from models.user_stats import UserStats
-from services.auth_service import AuthService
+from FastBot.builders import InlineMenuBuilder
+from FastBot.engine import TemplateEngine, ContextEngine
+from FastBot.logger import Logger
+from models import User, UserStats
+from services import AuthService
 
 from celery.result import AsyncResult
 

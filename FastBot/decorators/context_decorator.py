@@ -1,9 +1,9 @@
-from functools import partial, wraps
-from typing import Callable, Any, Optional
+from functools import wraps
+from typing import Callable, Optional
 
 import inspect
 
-from src.FastBotLib.engine.context.context_engine import ContextEngine
+from FastBot.engine import ContextEngine
 
 
 def register_context(

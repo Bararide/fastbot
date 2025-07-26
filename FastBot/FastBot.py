@@ -4,7 +4,6 @@ import inspect
 from contextlib import suppress
 import json
 import os
-import sys
 from typing import (
     Any,
     Callable,
@@ -31,14 +30,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from src.FastBotLib.engine.context.context_engine import ContextEngine
-from src.FastBotLib.logger.logger import Logger
+from FastBot.engine import ContextEngine
+from FastBot.logger import Logger
 
-from src.FastBotLib.MiniApp import MiniAppConfig, MiniAppManager
-from src.FastBotLib.filters.state_filter import StateFilter
-from src.FastBotLib.DI import DependencyContainer
-from src.FastBotLib.configs.configs import HandlerConfig
-from src.FastBotLib.strategies.handler_strategy import HandlerStrategy
+from FastBot.MiniApp import MiniAppConfig, MiniAppManager
+from FastBot.filters import StateFilter
+from FastBot.DI import DependencyContainer
+from FastBot.configs import HandlerConfig
+from FastBot.strategies import HandlerStrategy
 
 
 class FastBotError(Exception):

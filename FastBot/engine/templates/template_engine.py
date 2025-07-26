@@ -35,27 +35,27 @@ from aiogram.utils.markdown import (
 )
 from aiogram.enums import ParseMode
 
-from src.FastBotLib.logger.logger import Logger
+from FastBot.logger import Logger
 
 
 class TemplateEngineError(Exception):
-    """Базовое исключение для ошибок шаблонизатора"""
+    pass
 
 
 class TemplateNotFoundError(TemplateEngineError):
-    """Шаблон не найден"""
+    pass
 
 
 class TemplateRenderError(TemplateEngineError):
-    """Ошибка рендеринга шаблона"""
+    pass
 
 
 class TemplateSyntaxError(TemplateEngineError):
-    """Синтаксическая ошибка в шаблоне"""
+    pass
 
 
 class TemplateContextError(TemplateEngineError):
-    """Ошибка контекста шаблона"""
+    pass
 
 
 class TemplateEngine:
@@ -68,16 +68,6 @@ class TemplateEngine:
         enable_async: bool = True,
         **env_options,
     ):
-        """
-        Усовершенствованный движок шаблонов для Telegram ботов.
-
-        :param template_dirs: Путь или список путей к директориям с шаблонами
-        :param extensions: Список дополнительных расширений Jinja2
-        :param auto_reload: Автоматически перезагружать шаблоны при изменениях
-        :param cache_size: Размер кэша шаблонов
-        :param enable_async: Включить асинхронный режим
-        :param env_options: Дополнительные параметры окружения Jinja2
-        """
         if isinstance(template_dirs, str):
             template_dirs = [template_dirs]
 
@@ -192,7 +182,6 @@ class TemplateEngine:
         row_width: int = 2,
         **kwargs,
     ) -> dict:
-        """Упрощенный рендеринг с автоматической загрузкой кнопок"""
         context = context or {}
         buttons_context = buttons_context or {}
 
@@ -215,15 +204,6 @@ class TemplateEngine:
         disable_web_page_preview: Optional[bool] = None,
         **context,
     ) -> Union[str, Dict[str, Any]]:
-        """
-        Рендерит шаблон с заданным контекстом.
-
-        :param template_name: Имя шаблона
-        :param parse_mode: Режим парсинга (HTML, MarkdownV2 и т.д.)
-        :param disable_web_page_preview: Отключить превью веб-страницы
-        :param context: Контекст для рендеринга
-        :return: Отрендеренный текст или словарь с параметрами сообщения
-        """
         try:
             template = await self._get_template(template_name)
             rendered = await template.render_async(**context)
@@ -262,17 +242,6 @@ class TemplateEngine:
         reply_markup: Optional[Union[InlineKeyboardMarkup, ReplyKeyboardMarkup]] = None,
         **context,
     ) -> Dict[str, Any]:
-        """
-        Рендерит сообщение с шаблоном и дополнительными параметрами.
-
-        :param message: Объект сообщения aiogram
-        :param template_name: Имя шаблона
-        :param parse_mode: Режим парсинга
-        :param disable_web_page_preview: Отключить превью веб-страницы
-        :param reply_markup: Клавиатура для сообщения
-        :param context: Контекст для рендеринга
-        :return: Словарь с параметрами сообщения
-        """
         template_data = await self.render_template(
             template_name,
             parse_mode=parse_mode,
@@ -293,16 +262,6 @@ class TemplateEngine:
         disable_web_page_preview: Optional[bool] = None,
         reply_markup: Optional[Union[InlineKeyboardMarkup, ReplyKeyboardMarkup]] = None,
     ) -> Dict[str, Any]:
-        """
-        Рендерит полный ответ бота с возможностью указания всех параметров.
-
-        :param template_name: Имя шаблона
-        :param context: Контекст для рендеринга
-        :param parse_mode: Режим парсинга
-        :param disable_web_page_preview: Отключить превью веб-страницы
-        :param reply_markup: Клавиатура для сообщения
-        :return: Словарь с параметрами сообщения
-        """
         context = context or {}
         template_data = await self.render_template(
             template_name,
@@ -319,14 +278,6 @@ class TemplateEngine:
     async def generate_inline_keyboard(
         self, buttons: List[Dict[str, Any]], row_width: int = 3, **kwargs
     ) -> InlineKeyboardMarkup:
-        """
-        Генерирует inline-клавиатуру из шаблона.
-
-        :param buttons: Список кнопок
-        :param row_width: Количество кнопок в строке
-        :param kwargs: Дополнительные параметры
-        :return: Объект InlineKeyboardMarkup
-        """
         builder = InlineKeyboardBuilder()
 
         for button in buttons:
@@ -367,17 +318,6 @@ class TemplateEngine:
         selective: bool = False,
         **kwargs,
     ) -> ReplyKeyboardMarkup:
-        """
-        Генерирует reply-клавиатуру из шаблона.
-
-        :param buttons: Список кнопок
-        :param row_width: Количество кнопок в строке
-        :param resize_keyboard: Автоматически изменять размер клавиатуры
-        :param one_time_keyboard: Одноразовая клавиатура
-        :param selective: Избирательная клавиатура
-        :param kwargs: Дополнительные параметры
-        :return: Объект ReplyKeyboardMarkup
-        """
         builder = ReplyKeyboardBuilder()
 
         for button in buttons:
@@ -414,7 +354,6 @@ class TemplateEngine:
     async def load_buttons_from_template(
         self, template_name: str, **context
     ) -> List[Dict[str, Any]]:
-        """Загружает кнопки из шаблона с обработкой ошибок"""
         try:
             template = await self._get_template(template_name)
             rendered = await template.render_async(**context)

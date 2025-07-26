@@ -1,8 +1,7 @@
 from aiogram import types
 from aiogram.filters import Filter
-from aiogram import F
 
-from src.fastbot.models.user import User
+from models import User
 
 
 class CallbackDataFilter(Filter):

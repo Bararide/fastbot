@@ -1,10 +1,9 @@
 from typing import Union, Optional
 from aiogram.types import Message, CallbackQuery
 
-from src.FastBotLib.logger.logger import Logger
-from models.user import User
-from models.user_stats import UserStats
-from services.auth_service import AuthService
+from FastBot.logger import Logger
+from models import User, UserStats
+from services import AuthService
 
 
 async def resolve_user(

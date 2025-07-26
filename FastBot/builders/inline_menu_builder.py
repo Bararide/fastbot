@@ -10,10 +10,6 @@ from aiogram.types import (
 
 
 class InlineMenuBuilder:
-    """
-    Класс для удобного создания inline-меню
-    """
-
     def __init__(self):
         self.buttons = []
         self.row_width = None
@@ -21,7 +17,6 @@ class InlineMenuBuilder:
     def add_row(
         self, *buttons: Union[InlineKeyboardButton, Dict[str, Any]]
     ) -> "InlineMenuBuilder":
-        """Добавить ряд кнопок"""
         row = []
         for btn in buttons:
             if isinstance(btn, dict):
@@ -45,7 +40,6 @@ class InlineMenuBuilder:
         pay: Optional[bool] = None,
         **kwargs,
     ) -> InlineKeyboardButton:
-        """Создать кнопку с заданными параметрами"""
         if web_app and isinstance(web_app, str):
             web_app = WebAppInfo(url=web_app)
 
@@ -64,7 +58,6 @@ class InlineMenuBuilder:
         )
 
     def set_row_width(self, width: int) -> "InlineMenuBuilder":
-        """Установить ширину ряда (устаревший метод, лучше использовать add_row)"""
         self.row_width = width
         return self
 
@@ -78,7 +71,6 @@ class InlineMenuBuilder:
     def simple_menu(
         *buttons: Union[InlineKeyboardButton, Dict[str, Any]]
     ) -> InlineKeyboardMarkup:
-        """Быстрое создание простого меню из кнопок (каждая кнопка в своем ряду)"""
         builder = InlineMenuBuilder()
         for btn in buttons:
             builder.add_row(btn)
@@ -89,7 +81,6 @@ class InlineMenuBuilder:
         buttons: List[Union[InlineKeyboardButton, Dict[str, Any]]],
         columns: int = 2,
     ) -> InlineKeyboardMarkup:
-        """Создание меню с кнопками, расположенными в grid"""
         builder = InlineMenuBuilder()
         row = []
         for i, btn in enumerate(buttons, 1):

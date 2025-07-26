@@ -25,6 +25,7 @@ telegram = "^0.0.1"
 aiogram-dialog = "^2.3.1"
 fastapi = "^0.115.14"
 uvicorn = "^0.35.0"
+lupa = "^2.5"
 
 
 [build-system]

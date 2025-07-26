@@ -1,7 +1,7 @@
 from aiogram import types
 from aiogram.types import TelegramObject
 from typing import Callable, Dict, Any, Awaitable
-from src.FastBotLib.logger.logger import Logger
+from FastBot.logger import Logger
 
 
 async def logger_middleware(

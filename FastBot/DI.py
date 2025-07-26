@@ -4,8 +4,6 @@ from typing import (
     Dict,
     Type,
     Awaitable,
-    Union,
-    Optional,
     get_type_hints,
 )
 

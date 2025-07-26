@@ -1,8 +1,6 @@
 from datetime import datetime
-from src.fastbot.models.user import User
-from src.fastbot.models.user_stats import UserStats
-from src.FastBotLib.engine.context.context_engine import ContextEngine
-from src.FastBotLib.decorators.context_decorator import register_context
+from models import User, UserStats
+from FastBot.decorators import register_context
 
 
 @register_context("profile")
@@ -10,9 +8,9 @@ async def profile_context(user: User, stats: UserStats):
     return {
         "user": user,
         "stats": {
-            "messages": stats.get("messages", 0),
-            "completed_tasks": stats.get("completed_tasks", 0),
-            "active_tasks": stats.get("active_tasks", 0),
+            "messages": 0,
+            "completed_tasks": 0,
+            "active_tasks": 0,
         },
         "is_admin": user.is_admin,
     }

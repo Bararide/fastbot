@@ -1,7 +1,7 @@
 from aiogram import types
 from aiogram.types import TelegramObject, Message, CallbackQuery
 from typing import Callable, Dict, Any, Awaitable
-from src.FastBotLib.logger.logger import Logger
+from FastBot.logger import Logger
 from functools import partial
 import traceback
 
@@ -11,9 +11,6 @@ async def error_handling_middleware(
     event: TelegramObject,
     data: Dict[str, Any],
 ) -> Any:
-    """Middleware для обработки ошибок в handlers.
-    Логирует ошибки и отправляет пользователю сообщение об ошибке.
-    """
     try:
         return await handler(event, data)
     except Exception as e:

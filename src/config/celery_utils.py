@@ -1,6 +1,6 @@
 from .celery import celery_app
 from celery.result import AsyncResult
-from src.FastBotLib.logger.logger import Logger
+from FastBot.logger import Logger
 
 
 def get_task_result(task_id):

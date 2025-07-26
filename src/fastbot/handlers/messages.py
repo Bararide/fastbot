@@ -4,14 +4,14 @@ from typing import Any, Dict
 from aiogram import types
 from aiogram.enums import ParseMode
 
-from src.FastBotLib.engine.templates.template_engine import TemplateEngine
-from src.FastBotLib.decorators.with_template_engine import (
+from FastBot.engine import TemplateEngine
+from FastBot.decorators import (
     with_auto_reply,
     with_parse_mode,
     with_template_engine,
 )
 from src.config.celery_utils import run_task
-from src.FastBotLib.logger.logger import Logger
+from FastBot.logger import Logger
 
 
 @with_template_engine

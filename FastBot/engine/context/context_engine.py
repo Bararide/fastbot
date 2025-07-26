@@ -7,13 +7,11 @@ class ContextEngine:
         self._context_templates: Dict[str, Callable] = {}
 
     def add(self, name: str, template: Callable) -> None:
-        """Регистрация шаблона с валидацией сигнатуры."""
         if not callable(template):
             raise ValueError("Template must be callable")
         self._context_templates[name] = template
 
     async def get(self, name: str, **kwargs) -> Dict[str, Any]:
-        """Получение контекста с проверкой параметров."""
         if name not in self._context_templates:
             raise KeyError(f"Context '{name}' not registered")
 

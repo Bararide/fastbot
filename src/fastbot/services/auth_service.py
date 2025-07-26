@@ -1,9 +1,9 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-from services.db_service import DBService
-from models.user import User
-from models.user_stats import UserStats
-from src.FastBotLib.logger.logger import Logger
+from models import User, UserStats
+from FastBot.logger import Logger
 from typing import Optional
+
+from .db_service import DBService
 
 
 class AuthService:

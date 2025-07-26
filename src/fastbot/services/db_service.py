@@ -3,7 +3,7 @@ from motor.motor_asyncio import (
     AsyncIOMotorCollection,
     AsyncIOMotorDatabase,
 )
-from src.FastBotLib.logger.logger import Logger
+from FastBot.logger import Logger
 from typing import List, Optional, Any
 
 
