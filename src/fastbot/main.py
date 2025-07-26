@@ -133,7 +133,13 @@ async def main():
     bot_builder.add_handler(
         handlers.process_numbers, F.text.regexp(r"^-?\d+\.?\d*\s-?\d+\.?\d*$")
     )
-    bot_builder.add_handler(handlers.handle_invalid_input)
+    bot_builder.add_handler(handlers.new_member_handler, F.chat_join)
+    bot_builder.add_handler(
+        handlers.handle_invalid_input,
+        F.text
+        & ~F.text.regexp(r"^-?\d+\.?\d*\s-?\d+\.?\d*$")
+        & ~F.text.startswith("/"),
+    )
     bot_builder.add_callback_query_handler(
         filters.callback_get_profile_handler, F.data.startswith("profile_")
     )

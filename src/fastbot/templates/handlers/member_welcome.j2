@@ -1,0 +1,8 @@
+{% block content %}
+{% for member in new_members %}
+👋 Welcome to <b>{{ chat_title }}</b>, {{ member.full_name }}!
+{% if member.username %}
+Your username: @{{ member.username }}
+{% endif %}
+{% endfor %}
+{% endblock %}

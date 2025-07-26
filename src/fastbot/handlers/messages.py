@@ -70,12 +70,45 @@ async def process_numbers(
 
 
 @with_template_engine
+@with_auto_reply("handlers/new_member_welcome.j2")
+@with_parse_mode(ParseMode.HTML)
+async def new_member_handler(
+    message: types.Message,
+    ten: TemplateEngine,
+) -> Dict[str, Any]:
+    try:
+        if not message.new_chat_members:
+            return {"skip": True}
+
+        new_members = message.new_chat_members
+
+        context = {
+            "new_members": new_members,
+            "chat_title": message.chat.title if message.chat.title else "this group",
+        }
+
+        return {"context": context}
+
+    except Exception as e:
+        Logger.error(f"Error in new member handler: {str(e)}", exc_info=True)
+        return {"skip": True}
+
+
+@with_template_engine
 @with_auto_reply("commands/invalid_input.j2")
 @with_parse_mode(ParseMode.MARKDOWN)
 async def handle_invalid_input(
     message: types.Message, ten: TemplateEngine
 ) -> Dict[str, Any]:
-    if message.text.startswith("/"):
-        return {"skip": True}
+    try:
+        if not message.text:
+            return {"skip": True}
 
-    return {"context": {"command_example": "5 3.14"}}
+        if message.text.startswith("/"):
+            return {"skip": True}
+
+        return {"context": {"command_example": "5 3.14"}}
+
+    except Exception as e:
+        Logger.error(f"Error in handle_invalid_input: {str(e)}", exc_info=True)
+        return {"skip": True}
