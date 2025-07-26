@@ -7,7 +7,7 @@ from FastBot.engine import ContextEngine
 
 
 def register_context(
-    name: Optional[str] = None, *, context_engine: Optional[ContextEngine] = None
+    name: Optional[str] = None, *, cen: Optional[ContextEngine] = None
 ):
     def decorator(func: Callable) -> Callable:
         context_name = name or func.__name__

@@ -508,13 +508,13 @@ class FastBotBuilder:
         return self
 
     def add_context(self, context_func: Callable) -> "FastBotBuilder":
-        context_engine = self._get_or_create_context_engine()
+        cen = self._get_or_create_cen()
 
         context_name = (
             getattr(context_func, "_context_name", None) or context_func.__name__
         )
 
-        context_engine.add(context_name, context_func)
+        cen.add(context_name, context_func)
         Logger.info(f"Context registered: {context_name}")
 
         return self
@@ -524,13 +524,13 @@ class FastBotBuilder:
             self.add_context(func)
         return self
 
-    def _get_or_create_context_engine(self) -> ContextEngine:
-        if "context_engine" in self.dependency_container._dependencies:
-            return self.dependency_container._dependencies["context_engine"]
+    def _get_or_create_cen(self) -> ContextEngine:
+        if "cen" in self.dependency_container._dependencies:
+            return self.dependency_container._dependencies["cen"]
 
-        context_engine = ContextEngine()
-        self.add_dependency("context_engine", context_engine)
-        return context_engine
+        cen = ContextEngine()
+        self.add_dependency("cen", cen)
+        return cen
 
     async def _setup_commands(self, bot: Bot):
         """Настроить команды бота в меню команд"""

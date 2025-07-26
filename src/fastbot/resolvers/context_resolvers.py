@@ -30,14 +30,24 @@ async def profile_error_context(user: User, error_message: str):
     }
 
 
-@register_context("app")
-async def app_context():
-    return {"open": "open"}
-
-
 @register_context("profile_buttons")
 async def profile_buttons_context(user: User):
     return {"user_id": user.id, "is_admin": user.is_admin}
+
+
+@register_context("test_photo")
+async def test_photo_context(photo_id):
+    return {"photo_id": photo_id}
+
+
+@register_context("test_photo_error")
+async def test_photo_error_context():
+    return {}
+
+
+@register_context("app")
+async def app_context():
+    return {"open": "open"}
 
 
 @register_context("error_message")

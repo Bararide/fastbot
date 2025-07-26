@@ -24,14 +24,14 @@ from celery.result import AsyncResult
 async def cmd_start(
     message: types.Message,
     user: User,
-    template_engine: TemplateEngine,
-    context_engine: ContextEngine,
+    ten: TemplateEngine,
+    cen: ContextEngine,
 ):
     pass
 
 
-async def cmd_app(message: types.Message, context_engine: ContextEngine):
-    context = await context_engine.get("app")
+async def cmd_app(message: types.Message, cen: ContextEngine):
+    context = await cen.get("app")
     await message.answer(
         context.get("text", "Открыть Mini App"),
         reply_markup=InlineMenuBuilder()
@@ -50,8 +50,8 @@ async def cmd_app(message: types.Message, context_engine: ContextEngine):
 @with_parse_mode(ParseMode.HTML)
 async def cmd_status(
     message: types.Message,
-    template_engine: TemplateEngine,
-    context_engine: ContextEngine,
+    ten: TemplateEngine,
+    cen: ContextEngine,
 ):
     try:
         parts = message.text.split()
@@ -59,14 +59,12 @@ async def cmd_status(
         task = AsyncResult(task_id) if task_id else None
 
         return {
-            "context": await context_engine.get(
+            "context": await cen.get(
                 "status", task_id=task_id, task=task, exists=task is not None
             )
         }
     except Exception as e:
-        return {
-            "context": await context_engine.get("error_message", error_message=str(e))
-        }
+        return {"context": await cen.get("error_message", error_message=str(e))}
 
 
 @with_template_engine
@@ -74,9 +72,9 @@ async def cmd_status(
 @with_parse_mode(ParseMode.HTML)
 async def cmd_register(
     message: types.Message,
-    template_engine: TemplateEngine,
+    ten: TemplateEngine,
     auth_service: AuthService,
-    context_engine: ContextEngine,
+    cen: ContextEngine,
 ):
     user = message.from_user
     try:
@@ -90,13 +88,9 @@ async def cmd_register(
             }
         )
 
-        return {
-            "context": await context_engine.get(
-                "registration", user=new_user, success=True
-            )
-        }
+        return {"context": await cen.get("registration", user=new_user, success=True)}
     except ValueError as e:
-        return {"context": await context_engine.get("registration_error", error=str(e))}
+        return {"context": await cen.get("registration_error", error=str(e))}
 
 
 @with_template_engine
@@ -108,19 +102,19 @@ async def cmd_profile(
     message: types.Message,
     user: User,
     stats: UserStats,
-    context_engine: ContextEngine,
-    template_engine: TemplateEngine,
+    cen: ContextEngine,
+    ten: TemplateEngine,
 ) -> Dict[str, Any]:
     try:
         return {
-            "context": await context_engine.get("profile", user=user, stats=stats),
-            "buttons_context": await context_engine.get("profile_buttons", user=user),
+            "context": await cen.get("profile", user=user, stats=stats),
+            "buttons_context": await cen.get("profile_buttons", user=user),
             "row_width": 2,
         }
     except Exception as e:
         Logger.error(f"Error in cmd_profile: {e}")
         return {
-            "context": await context_engine.get(
+            "context": await cen.get(
                 "profile_error", user=user, error_message="Ошибка загрузки профиля"
             )
         }
@@ -135,33 +129,31 @@ async def cmd_profile(
 @with_parse_mode(ParseMode.HTML)
 async def cmd_admin_list(
     message: types.Message,
-    template_engine: TemplateEngine,
+    ten: TemplateEngine,
     user: User,
     auth_service: AuthService,
-    context_engine: ContextEngine,
+    cen: ContextEngine,
 ):
     try:
         if not user.is_admin:
             return {
-                "context": await context_engine.get(
+                "context": await cen.get(
                     "access_denied", message="⛔ Доступ только для администраторов"
                 )
             }
 
         return {
-            "context": await context_engine.get(
+            "context": await cen.get(
                 "admin_list",
                 admins=await auth_service.users.find({"is_admin": True}).to_list(None)
                 or [],
             ),
-            "buttons_context": await context_engine.get(
-                "admin_buttons", user_id=user.id
-            ),
+            "buttons_context": await cen.get("admin_buttons", user_id=user.id),
         }
     except Exception as e:
         Logger.error(f"Error in cmd_admin_list: {str(e)}")
         return {
-            "context": await context_engine.get(
+            "context": await cen.get(
                 "admin_list_error",
                 error_message="⚠️ Ошибка при загрузке списка администраторов",
             )

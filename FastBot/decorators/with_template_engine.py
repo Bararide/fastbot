@@ -17,14 +17,15 @@ def apply_decorators(*decorators):
 def with_template_engine(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
-        if "template_engine" not in kwargs:
-            for arg in args:
-                if isinstance(arg, TemplateEngine):
-                    kwargs["template_engine"] = arg
-                    break
-            else:
-                raise ValueError("TemplateEngine не найден!")
-        return await func(*args, **kwargs)
+        for arg in args:
+            if isinstance(arg, TemplateEngine):
+                return await func(*args, **kwargs)
+
+        for arg in kwargs.values():
+            if isinstance(arg, TemplateEngine):
+                return await func(*args, **kwargs)
+
+        raise ValueError("TemplateEngine не передан в аргументах!")
 
     return wrapper
 
@@ -94,7 +95,19 @@ def with_auto_reply(template_name, buttons_template=None):
                     "Message or CallbackQuery object not found in arguments"
                 )
 
-            template_engine = kwargs["template_engine"]
+            ten = None
+            for arg in args:
+                if isinstance(arg, TemplateEngine):
+                    ten = arg
+                    break
+            if ten is None:
+                for value in kwargs.values():
+                    if isinstance(value, TemplateEngine):
+                        ten = value
+                        break
+
+            if ten is None:
+                raise ValueError("TemplateEngine не найден!")
 
             func_result = await func(*args, **kwargs)
 
@@ -125,7 +138,7 @@ def with_auto_reply(template_name, buttons_template=None):
                     reply_params["buttons_context"] = func_result["buttons_context"]
                 reply_params["buttons_template"] = buttons_template
 
-            return await template_engine.reply(**reply_params)
+            return await ten.reply(**reply_params)
 
         return wrapper
 

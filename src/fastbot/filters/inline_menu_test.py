@@ -47,8 +47,8 @@ async def callback_handler(
 @with_auto_reply("commands/profile.j2", "buttons/profile_menu_buttons.j2")
 async def callback_get_profile_handler(
     callback: types.CallbackQuery,
-    template_engine: TemplateEngine,
-    context_engine: ContextEngine,
+    ten: TemplateEngine,
+    cen: ContextEngine,
     user: User,
     stats: UserStats,
 ) -> dict:
@@ -62,8 +62,8 @@ async def callback_get_profile_handler(
             }
 
         return {
-            "context": await context_engine.get("profile", user=user, stats=stats),
-            "buttons_context": await context_engine.get("profile_buttons", user=user),
+            "context": await cen.get("profile", user=user, stats=stats),
+            "buttons_context": await cen.get("profile_buttons", user=user),
             "row_width": 2,
         }
     except Exception as e:

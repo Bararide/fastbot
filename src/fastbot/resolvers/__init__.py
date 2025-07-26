@@ -9,6 +9,8 @@ from .context_resolvers import (
     registration_context,
     admin_list_context,
     access_denied_context,
+    test_photo_context,
+    test_photo_error_context,
 )
 
 from .user_resolver import resolve_user, resolve_user_stats
@@ -26,4 +28,6 @@ __all__ = [
     "access_denied_context",
     "resolve_user",
     "resolve_user_stats",
+    "test_photo_context",
+    "test_photo_error_context",
 ]

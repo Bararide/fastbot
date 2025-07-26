@@ -1,4 +1,4 @@
-return function(user, stats)
+return function(user, error_message)
     return {
         user = user,
         stats = {
@@ -6,6 +6,7 @@ return function(user, stats)
             completed_tasks = 0,
             active_tasks = 0,
         },
-        is_admin = user.is_admin
+        is_admin = user.is_admin,
+        error_message = error_message
     }
-end
+end 

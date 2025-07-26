@@ -6,7 +6,7 @@ from .commands import (
     cmd_admin_list,
     cmd_app,
 )
-from .messages import process_numbers, handle_invalid_input
+from .messages import process_numbers, handle_invalid_input, test_photo
 from .error_handler import error_handler
 
 __all__ = [
@@ -19,4 +19,5 @@ __all__ = [
     "cmd_profile",
     "cmd_admin_list",
     "error_handler",
+    "test_photo",
 ]

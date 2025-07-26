@@ -8,18 +8,18 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from fastapi import WebSocket
 
+from FastBot.engine import TemplateEngine
+from FastBot.engine import ContextEngine
+
+from FastBot import FastBotBuilder, MiniAppConfig
+from FastBot.logger import Logger
+
 import handlers
 import resolvers
 import services
 import middleware
 import models
 import filters
-
-from FastBot.engine import TemplateEngine
-from FastBot.engine import ContextEngine
-
-from FastBot import FastBotBuilder, MiniAppConfig
-from FastBot.logger import Logger
 
 load_dotenv()
 
@@ -56,10 +56,8 @@ async def main():
     database_service = services.DBService(getenv("MONGO_URI"), getenv("DATABASE_NAME"))
     auth_service = services.AuthService(database_service)
     auth_middleware = middleware.AuthMiddleware(auth_service)
-    template_engine_service = TemplateEngine(
-        template_dirs=["templates", "src/fastbot/templates"]
-    )
-    context_engine_service = ContextEngine()
+    ten_service = TemplateEngine(template_dirs=["templates", "src/fastbot/templates"])
+    cen_service = ContextEngine()
 
     admin_router.message.middleware(auth_middleware)
     admin_router.callback_query.middleware(auth_middleware)
@@ -90,8 +88,8 @@ async def main():
     bot_builder.add_dependency("database_service", database_service)
     bot_builder.add_dependency("auth_service", auth_service)
     bot_builder.add_dependency("auth_middleware", auth_middleware)
-    bot_builder.add_dependency("template_engine", template_engine_service)
-    bot_builder.add_dependency("context_engine", context_engine_service)
+    bot_builder.add_dependency("template_engine", ten_service)
+    bot_builder.add_dependency("cen", cen_service)
     bot_builder.add_dependency_resolver(models.User, resolvers.resolve_user)
     bot_builder.add_dependency_resolver(models.UserStats, resolvers.resolve_user_stats)
 
@@ -106,6 +104,8 @@ async def main():
             resolvers.registration_error_context,
             resolvers.profile_error_context,
             resolvers.app_context,
+            resolvers.test_photo_context,
+            resolvers.test_photo_error_context,
         ]
     )
 
@@ -129,6 +129,7 @@ async def main():
         filters.show_confirmation_menu, filters.handle_conf_menu_reply_buttons
     )
 
+    bot_builder.add_handler(handlers.test_photo, F.photo)
     bot_builder.add_handler(
         handlers.process_numbers, F.text.regexp(r"^-?\d+\.?\d*\s-?\d+\.?\d*$")
     )
