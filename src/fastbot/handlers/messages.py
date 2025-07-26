@@ -32,10 +32,6 @@ async def test_photo(
         photo = message.photo[-1]
         file_id = photo.file_id
 
-        # file = await bot.get_file(file_id)
-        # file_path = file.file_path
-        # await bot.download_file(file_path, "photo.jpg")
-
         return {"context": await cen.get("test_photo", photo_id=file_id)}
     except Exception as e:
         Logger.error(f"Error in test photo handler: {str(e)}", exc_info=True)
