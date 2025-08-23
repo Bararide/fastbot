@@ -16,6 +16,8 @@ from typing import (
     Awaitable,
 )
 
+from pampy import match, _
+
 from aiogram import F, Bot, Dispatcher, Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramAPIError
@@ -465,23 +467,11 @@ class FastBotBuilder:
     def add_inline_query_handler(
         self, handler: Callable, *filters: BaseFilter, router: Optional[Router] = None
     ) -> "FastBotBuilder":
-        """
-        Добавить обработчик для inline query
-
-        :param handler: Функция-обработчик
-        :param filters: Фильтры для обработчика
-        :param router: Конкретный роутер (если None, используется дефолтный)
-        """
         return self.add_handler(
             handler, *filters, event_type=InlineQuery, router=router
         )
 
     def set_error_handler(self, handler: Callable) -> "FastBotBuilder":
-        """
-        Установить обработчик ошибок
-
-        :param handler: Функция-обработчик ошибок
-        """
         self._error_handler = handler
         Logger.info(f"Error handler set: {handler.__name__}")
         return self
@@ -594,23 +584,35 @@ class FastBotBuilder:
 
                 bound_args = {}
 
-                if isinstance(event, Message):
-                    if "message" in sig.parameters:
-                        bound_args["message"] = event
-                    elif "msg" in sig.parameters:
-                        bound_args["msg"] = event
-                elif isinstance(event, CallbackQuery):
-                    if "callback" in sig.parameters:
-                        bound_args["callback"] = event
-                    elif "callback_query" in sig.parameters:
-                        bound_args["callback_query"] = event
-                    elif "query" in sig.parameters:
-                        bound_args["query"] = event
-                elif isinstance(event, InlineQuery):
-                    if "inline_query" in sig.parameters:
-                        bound_args["inline_query"] = event
-                    elif "query" in sig.parameters:
-                        bound_args["query"] = event
+                match_result = match(
+                    event,
+                    Message,
+                    lambda msg: {
+                        "message": msg if "message" in sig.parameters else None,
+                        "msg": msg if "msg" in sig.parameters else None,
+                    },
+                    CallbackQuery,
+                    lambda cb: {
+                        "callback": cb if "callback" in sig.parameters else None,
+                        "callback_query": (
+                            cb if "callback_query" in sig.parameters else None
+                        ),
+                        "query": cb if "query" in sig.parameters else None,
+                    },
+                    InlineQuery,
+                    lambda iq: {
+                        "inline_query": (
+                            iq if "inline_query" in sig.parameters else None
+                        ),
+                        "query": iq if "query" in sig.parameters else None,
+                    },
+                    _,
+                    lambda x: {},
+                )
+
+                for key, value in match_result.items():
+                    if value is not None and key in sig.parameters:
+                        bound_args[key] = value
 
                 if "state" in sig.parameters and "state" in kwargs:
                     bound_args["state"] = kwargs["state"]

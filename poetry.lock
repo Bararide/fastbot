@@ -1360,6 +1360,17 @@ files = [
 ]
 
 [[package]]
+name = "pampy"
+version = "0.3.0"
+description = "The Pattern Matching for Python you always dreamed of"
+optional = false
+python-versions = ">3.6"
+files = [
+    {file = "pampy-0.3.0-py3-none-any.whl", hash = "sha256:304470a6562173096fc88c22dc0ab50401ca2e3875a8725ee510759ec8ba58ff"},
+    {file = "pampy-0.3.0.tar.gz", hash = "sha256:82054212e4478fc22163c55321a3583eda9918aff4440eed6c197e872a2a667b"},
+]
+
+[[package]]
 name = "prompt-toolkit"
 version = "3.0.51"
 description = "Library for building powerful interactive command lines in Python"
@@ -2186,4 +2197,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "dc7d378cecb407e980033661f88982514d02ec3aa393b62e61ffc468f519742c"
+content-hash = "859608ab707cde7b1a2403a2f91ee1d73e6d0651ff70b13fd5e42ebb0b6c3ea7"
