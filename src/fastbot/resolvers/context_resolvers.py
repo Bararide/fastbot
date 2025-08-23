@@ -45,6 +45,16 @@ async def test_photo_error_context():
     return {}
 
 
+@register_context("number_status")
+async def number_status_context(task_id, result):
+    return {"task_id": task_id, "result": result}
+
+
+@register_context("number_status_error")
+async def number_status_error_context(task_id):
+    return {"task_id": task_id}
+
+
 @register_context("app")
 async def app_context():
     return {"open": "open"}

@@ -1,0 +1,4 @@
+{% block content %}
+✅ {{ ("ID задачи: " ~ task_id | default(0)) | bold }}
+   {{ ("Невозможно получить результат: ")}}
+{% endblock %}

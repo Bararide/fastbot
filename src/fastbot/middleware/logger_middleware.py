@@ -9,7 +9,6 @@ async def logger_middleware(
     event: TelegramObject,
     data: Dict[str, Any],
 ) -> Any:
-    """Middleware для логирования входящих событий"""
     handler_name = getattr(handler, "__name__", str(handler))
     handler_module = getattr(handler, "__module__", "unknown")
 

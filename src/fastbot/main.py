@@ -106,6 +106,8 @@ async def main():
             resolvers.app_context,
             resolvers.test_photo_context,
             resolvers.test_photo_error_context,
+            resolvers.number_status_context,
+            resolvers.number_status_error_context,
         ]
     )
 
@@ -145,6 +147,9 @@ async def main():
     )
     bot_builder.add_callback_query_handler(
         filters.callback_handler, F.data.startswith("btn_")
+    )
+    bot_builder.add_callback_query_handler(
+        filters.check_number_status, F.data.startswith("status_")
     )
     bot_builder.add_callback_query_handler(filters.handle_help_button, F.data == "help")
     bot_builder.add_callback_query_handler(filters.handle_default_actions)

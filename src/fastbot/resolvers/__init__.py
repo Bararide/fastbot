@@ -11,12 +11,16 @@ from .context_resolvers import (
     access_denied_context,
     test_photo_context,
     test_photo_error_context,
+    number_status_context,
+    number_status_error_context,
 )
 
 from .user_resolver import resolve_user, resolve_user_stats
 
 __all__ = [
     "profile_context",
+    "number_status_context",
+    "number_status_error_context",
     "profile_error_context",
     "app_context",
     "profile_buttons_context",

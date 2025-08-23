@@ -11,6 +11,7 @@ from FastBot.logger import Logger
 from models import User
 from models import UserStats
 from services import AuthService
+from celery.result import AsyncResult
 from FastBot.decorators import (
     with_template_engine,
     with_parse_mode,
@@ -40,6 +41,26 @@ async def callback_handler(
 ) -> Any:
     await callback.answer(f"Пользователь: {user.id}")
     return await callback.message.answer(f"Выбрано: {callback.data}")
+
+
+@with_template_engine
+@with_parse_mode(ParseMode.HTML)
+@with_auto_reply("filters/number_status.j2")
+async def check_number_status(
+    callback: types.CallbackQuery, ten: TemplateEngine, cen: ContextEngine
+) -> Any:
+    task_id = callback.data.split("_")[1]
+    task = AsyncResult(task_id)
+    if task.ready():
+        result = task.result
+        return {
+            "context": await cen.get("number_status", task_id=task_id, result=result)
+        }
+    else:
+        return {
+            "template_name": "filters/number_status_error.j2",
+            "context": {"task_id": task_id},
+        }
 
 
 @with_template_engine

@@ -11,6 +11,7 @@ from .inline_menu_test import (
     callback_get_profile_handler,
     show_buttons,
     callback_handler,
+    check_number_status,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "handle_help_button",
     "show_buttons",
     "callback_handler",
+    "check_number_status",
 ]

@@ -13,8 +13,6 @@ from FastBot.logger import Logger
 
 
 class HandlerStrategy:
-    """Стратегия для регистрации обработчиков"""
-
     @staticmethod
     def register(
         router: Router,

@@ -1,0 +1,4 @@
+{% block content %}
+✅ {{ ("ID задачи: " ~ task_id | default(0)) | bold }}
+   {{ ("Результат: " ~ result | default(0)) | bold}}
+{% endblock %}
