@@ -45,6 +45,21 @@ async def test_photo_error_context():
     return {}
 
 
+@register_context("choose_lang")
+async def choose_lang_context():
+    return {}
+
+
+@register_context("choose_lang_buttons")
+async def choose_lang_buttons_context(user_id):
+    return {"user_id": user_id}
+
+
+@register_context("choose_lang_error")
+async def choose_lang_error_context(error: str):
+    return {"error": error}
+
+
 @register_context("number_status")
 async def number_status_context(task_id, result):
     return {"task_id": task_id, "result": result}

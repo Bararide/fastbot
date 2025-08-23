@@ -108,6 +108,9 @@ async def main():
             resolvers.test_photo_error_context,
             resolvers.number_status_context,
             resolvers.number_status_error_context,
+            resolvers.choose_lang_context,
+            resolvers.choose_lang_buttons_context,
+            resolvers.choose_lang_error_context,
         ]
     )
 
@@ -119,6 +122,7 @@ async def main():
         ("profile", handlers.cmd_profile, "Просмотреть свой профиль"),
         ("admins", handlers.cmd_admin_list, "Список администраторов"),
         ("app", handlers.cmd_app, "Приложение"),
+        ("lang", handlers.cmd_choose_lang, "Выбор языка"),
     ]
 
     for cmd, handler, desc in command_handlers:
@@ -150,6 +154,9 @@ async def main():
     )
     bot_builder.add_callback_query_handler(
         filters.check_number_status, F.data.startswith("status_")
+    )
+    bot_builder.add_callback_query_handler(
+        filters.handle_lang_button, F.data.startswith("lang_")
     )
     bot_builder.add_callback_query_handler(filters.handle_help_button, F.data == "help")
     bot_builder.add_callback_query_handler(filters.handle_default_actions)

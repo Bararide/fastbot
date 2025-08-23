@@ -3,6 +3,7 @@ from .callback_data_filter import (
     handle_profile_actions,
     handle_default_actions,
     handle_help_button,
+    handle_lang_button,
 )
 from .confirm_menu import show_confirmation_menu, handle_conf_menu_reply_buttons
 from .feedback_menu import show_feedback_menu, handle_feedback_menu_reply_buttons
@@ -16,6 +17,7 @@ from .inline_menu_test import (
 
 __all__ = [
     "CallbackDataFilter",
+    "handle_lang_button",
     "show_confirmation_menu",
     "handle_conf_menu_reply_buttons",
     "show_feedback_menu",

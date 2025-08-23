@@ -95,6 +95,30 @@ async def cmd_register(
 
 @with_template_engine
 @with_auto_reply(
+    template_name="commands/choose_lang.j2",
+    buttons_template="buttons/choose_lang_buttons.j2",
+)
+async def cmd_choose_lang(
+    message: types.Message,
+    ten: TemplateEngine,
+    user: User,
+    cen: ContextEngine,
+):
+    try:
+        return {
+            "context": await cen.get("choose_lang"),
+            "buttons_context": await cen.get("choose_lang_buttons", user_id=user.id),
+            "row_width": 2,
+        }
+    except Exception as e:
+        Logger.error(f"Error in cmd_choose_lang: {e}")
+        return {
+            "context": await cen.get("choose_lang_error", error="Error in choose lang")
+        }
+
+
+@with_template_engine
+@with_auto_reply(
     template_name="commands/profile.j2",
     buttons_template="buttons/profile_menu_buttons.j2",
 )

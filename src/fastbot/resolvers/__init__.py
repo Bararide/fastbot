@@ -13,12 +13,18 @@ from .context_resolvers import (
     test_photo_error_context,
     number_status_context,
     number_status_error_context,
+    choose_lang_context,
+    choose_lang_buttons_context,
+    choose_lang_error_context,
 )
 
 from .user_resolver import resolve_user, resolve_user_stats
 
 __all__ = [
     "profile_context",
+    "choose_lang_context",
+    "choose_lang_buttons_context",
+    "choose_lang_error_context",
     "number_status_context",
     "number_status_error_context",
     "profile_error_context",

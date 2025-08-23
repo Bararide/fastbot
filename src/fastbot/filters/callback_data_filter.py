@@ -1,7 +1,7 @@
 from aiogram import types
 from aiogram.filters import Filter
 
-from models import User
+from models import User, LANG
 
 
 class CallbackDataFilter(Filter):
@@ -10,6 +10,18 @@ class CallbackDataFilter(Filter):
 
     async def __call__(self, callback: types.CallbackQuery) -> bool:
         return callback.data.startswith(self.prefix)
+
+
+async def handle_lang_button(callback: types.CallbackQuery, user: User):
+    action = callback.data.removeprefix("lang_")
+    if action.startswith("ru_"):
+        user.lang = LANG.RU
+        await callback.message.answer("Язык изменен на русский")
+    elif action.startswith("en_"):
+        user.lang = LANG.EN
+        await callback.message.answer("Language changed to English")
+    else:
+        await callback.message.answer("Неизвестное действие")
 
 
 async def handle_profile_actions(callback: types.CallbackQuery, user: User):
