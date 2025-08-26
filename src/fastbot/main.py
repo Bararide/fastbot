@@ -25,23 +25,19 @@ load_dotenv()
 
 
 async def on_startup(bot: Any) -> None:
-    """Функция, выполняемая при запуске бота"""
     Logger.info("Bot started successfully!")
 
 
 async def on_shutdown(bot: Any) -> None:
-    """Функция, выполняемая при остановке бота"""
     Logger.info("Bot is shutting down...")
 
 
 async def handle_webhook(data: dict):
-    """Обработчик вебхуков от Mini App"""
     Logger.info(f"Received webhook data: {data}")
     return {"status": "ok"}
 
 
 async def websocket_handler(websocket: WebSocket):
-    """Обработчик WebSocket соединений"""
     await websocket.accept()
     while True:
         data = await websocket.receive_text()

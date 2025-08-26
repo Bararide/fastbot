@@ -25,7 +25,7 @@ def with_template_engine(func):
             if isinstance(arg, TemplateEngine):
                 return await func(*args, **kwargs)
 
-        raise ValueError("TemplateEngine не передан в аргументах!")
+        raise ValueError("TemplateEngine не передан в аргументах")
 
     return wrapper
 

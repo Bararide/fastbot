@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 import os
 from typing import Any, Dict
@@ -130,6 +131,7 @@ async def cmd_profile(
     stats: UserStats,
     cen: ContextEngine,
     ten: TemplateEngine,
+    auth_service: AuthService,
 ) -> Dict[str, Any]:
     try:
         return {
