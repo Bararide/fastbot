@@ -31,6 +31,16 @@ class Result(Generic[T, E]):
             return self._value
         return default
 
+    def unwrap_err(self) -> E:
+        if self._is_ok:
+            raise ValueError("Cannot unwrap_err from Ok result")
+        return self._error
+
+    def err(self) -> Optional[E]:
+        if self._is_ok:
+            return None
+        return self._error
+
     def unwrap_or_else(self, fn: Callable[[E], T]) -> T:
         if self._is_ok:
             return self._value
@@ -64,6 +74,8 @@ def result_try(func):
     async def async_wrapper(*args, **kwargs):
         try:
             result = await func(*args, **kwargs)
+            if isinstance(result, Result):
+                return result
             return Ok(result)
         except Exception as e:
             return Err(e)
@@ -71,6 +83,8 @@ def result_try(func):
     def sync_wrapper(*args, **kwargs):
         try:
             result = func(*args, **kwargs)
+            if isinstance(result, Result):
+                return result
             return Ok(result)
         except Exception as e:
             return Err(e)

@@ -20,11 +20,11 @@ class HandlerStrategy:
         filters: List[BaseFilter],
         event_type: Type[TelegramObject],
     ) -> None:
-        if event_type == Message:
+        if event_type is Message:
             router.message.register(handler, *filters)
-        elif event_type == CallbackQuery:
+        elif event_type is CallbackQuery:
             router.callback_query.register(handler, *filters)
-        elif event_type == InlineQuery:
+        elif event_type is InlineQuery:
             router.inline_query.register(handler, *filters)
         else:
             Logger.warning(f"Unsupported event type: {event_type}")

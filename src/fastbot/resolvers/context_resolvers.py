@@ -87,7 +87,7 @@ async def start_context(user: User):
 
 @register_context("registration_error")
 async def registration_error_context(error: str):
-    return {"error": error, "has_access": False}
+    return {"error": error, "has_access": False, "success": False}
 
 
 @register_context("registration")

@@ -77,20 +77,22 @@ async def cmd_register(
     cen: ContextEngine,
 ):
     user = message.from_user
-    try:
-        new_user = await auth_service.register_user(
-            {
-                "id": user.id,
-                "username": user.username,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "registered_at": datetime.now().isoformat(),
-            }
-        )
+    result = await auth_service.register_user(
+        {
+            "id": user.id,
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "registered_at": datetime.now().isoformat(),
+        }
+    )
 
-        return {"context": await cen.get("registration", user=new_user, success=True)}
-    except ValueError as e:
-        return {"context": await cen.get("registration_error", error=str(e))}
+    if result.is_ok():
+        return {
+            "context": await cen.get("registration", user=result.unwrap(), success=True)
+        }
+    else:
+        return {"context": await cen.get("registration_error", error=str(result.err()))}
 
 
 @with_template_engine

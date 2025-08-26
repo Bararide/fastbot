@@ -22,11 +22,10 @@ class AuthService:
     @result_try
     async def register_user(self, user_data: dict) -> Result[User, Exception]:
         if await self.users.find_one({"id": user_data["id"]}):
-            return ValueError("User already exists")
+            raise ValueError("User already exists")
 
         user = User(**user_data)
         await self.users.insert_one(user.dict())
-        Logger.info(f"New user registered: {user.id}")
         return user
 
     @result_try
