@@ -15,6 +15,8 @@ from .decorators import (
     with_parse_mode,
 )
 
+from .core import Result, Ok, Err, result_try
+
 from .logger import logger
 
 from .configs import HandlerConfig
@@ -22,6 +24,10 @@ from .configs import HandlerConfig
 from .filters import StateFilter
 
 __all__ = [
+    "Result",
+    "Ok",
+    "Err",
+    "result_try",
     "FastBotBuilder",
     "MiniAppConfig",
     "FastBot",

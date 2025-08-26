@@ -9,6 +9,9 @@ from typing import (
 
 from aiogram.types import TelegramObject
 
+from FastBot.logger import Logger
+from FastBot.core import Result
+
 
 class DependencyContainer:
     def __init__(self):
@@ -52,6 +55,14 @@ class DependencyContainer:
         for dep_type, resolver in self._resolvers.items():
             if dep_type not in resolved:
                 resolver_deps = self._resolver_dependencies.get(dep_type, {})
-                resolved[dep_type] = await resolver(event, **resolver_deps)
+                result = await resolver(event, **resolver_deps)
+
+                if isinstance(result, Result):
+                    if result.is_ok():
+                        resolved[dep_type] = result.unwrap()
+                    else:
+                        Logger.error(f"Failed to resolve {dep_type}: {result.unwrap()}")
+                else:
+                    resolved[dep_type] = result
 
         return resolved

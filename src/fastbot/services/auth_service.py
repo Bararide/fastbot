@@ -1,8 +1,6 @@
-from motor.motor_asyncio import AsyncIOMotorClient
 from models import User, UserStats
+from FastBot.core import Result, Ok, Err, result_try
 from FastBot.logger import Logger
-from typing import Optional
-
 from .db_service import DBService
 
 
@@ -11,27 +9,38 @@ class AuthService:
         self.db_service = db_service
         self.users = self.db_service.db["users"]
 
-    async def get_user(self, user_id: int) -> Optional[User]:
-        Logger.info(f"Getting user: {user_id}")
+    @result_try
+    async def get_user(self, user_id: int) -> User:
         user = await self.users.find_one({"id": user_id})
-        return User(**user) if user else None
+        if user:
+            return User(**user)
+        else:
+            new_user = User(id=user_id)
+            await self.users.insert_one(new_user.dict())
+            return new_user
 
-    async def register_user(self, user_data: dict) -> User:
+    @result_try
+    async def register_user(self, user_data: dict) -> Result[User, Exception]:
         if await self.users.find_one({"id": user_data["id"]}):
-            raise ValueError("User already exists")
+            return ValueError("User already exists")
 
         user = User(**user_data)
         await self.users.insert_one(user.dict())
         Logger.info(f"New user registered: {user.id}")
         return user
 
-    async def update_user(self, user_id: int, update_data: dict) -> bool:
+    @result_try
+    async def update_user(
+        self, user_id: int, update_data: dict
+    ) -> Result[bool, Exception]:
         result = await self.users.update_one({"id": user_id}, {"$set": update_data})
         return result.modified_count > 0
 
-    async def delete_user(self, user_id: int) -> bool:
+    @result_try
+    async def delete_user(self, user_id: int) -> Result[bool, Exception]:
         result = await self.users.delete_one({"id": user_id})
         return result.deleted_count > 0
 
-    async def get_user_stats(self, user_id: int) -> Optional[UserStats]:
+    @result_try
+    async def get_user_stats(self, user_id: int) -> UserStats:
         return UserStats(id=user_id)

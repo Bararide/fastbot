@@ -192,31 +192,22 @@ class FastBotBuilder:
         self.handler_strategy = HandlerStrategy()
 
     def set_bot(self, bot: Bot) -> "FastBotBuilder":
-        """Установить объект бота"""
         self._bot = bot
         Logger.info(f"Bot set with token: {bot.token[:5]}...{bot.token[-5:]}")
         return self
 
     def set_dispatcher(self, dp: Dispatcher) -> "FastBotBuilder":
-        """Установить диспетчер"""
         self._dp = dp
         Logger.info("Dispatcher set")
         return self
 
     def add_mini_app(self, config: MiniAppConfig) -> "FastBotBuilder":
-        """Add Telegram Mini App configuration"""
         self._mini_app_config = config
         return self
 
     def add_middleware(
         self, middleware: Callable, event_type: Type[TelegramObject] = Message
     ) -> "FastBotBuilder":
-        """
-        Добавить middleware с указанием типа события
-
-        :param middleware: Функция middleware
-        :param event_type: Тип события (Message, CallbackQuery, InlineQuery)
-        """
         middleware_name = getattr(middleware, "__name__", str(middleware))
 
         if event_type == Message:
@@ -257,16 +248,6 @@ class FastBotBuilder:
         router: Optional[Router] = None,
         dependencies: Optional[Dict[str, Any]] = None,
     ) -> "FastBotBuilder":
-        """
-        Добавить обработчик для reply-меню с поддержкой FSM состояний.
-        Автоматически учитывает параметры декоратора @menu_handler, если он применен.
-
-        :param handler: Функция-обработчик
-        :param buttons: Список кнопок, на которые должен реагировать обработчик
-        :param state: Состояние FSM
-        :param router: Роутер
-        :param dependencies: Зависимости
-        """
         menu_handler_info = getattr(handler, "_menu_handler_info", None)
 
         final_buttons = buttons
@@ -387,16 +368,6 @@ class FastBotBuilder:
         state: Optional[Any] = None,
         router: Optional[Router] = None,
     ) -> "FastBotBuilder":
-        """
-        Добавить обработчик команды с автоматической обработкой FSM состояния
-
-        :param command: Команда или список команд
-        :param handler: Функция-обработчик
-        :param description: Описание команды
-        :param state: Состояние FSM (если нужно)
-        :param router: Роутер
-        """
-
         async def wrapped_handler(message: types.Message, state: FSMContext, **kwargs):
             if state is not None:
                 await state.set_state(state)
@@ -412,16 +383,6 @@ class FastBotBuilder:
         state: Optional[Any] = None,
         router: Optional[Router] = None,
     ) -> "FastBotBuilder":
-        """
-        Добавить асинхронный обработчик команды с автоматической обработкой FSM состояния
-
-        :param command: Команда или список команд
-        :param handler: Функция-обработчик
-        :param description: Описание команды
-        :param state: Состояние FSM
-        :param router: Роутер
-        """
-
         async def wrapped_handler(message: types.Message, state: FSMContext, **kwargs):
             if state is not None:
                 await state.set_state(state)
@@ -453,13 +414,6 @@ class FastBotBuilder:
     def add_callback_query_handler(
         self, handler: Callable, *filters: BaseFilter, router: Optional[Router] = None
     ) -> "FastBotBuilder":
-        """
-        Добавить обработчик для callback query
-
-        :param handler: Функция-обработчик
-        :param filters: Фильтры для обработчика
-        :param router: Конкретный роутер (если None, используется дефолтный)
-        """
         return self.add_handler(
             handler, *filters, event_type=CallbackQuery, router=router
         )
@@ -515,8 +469,9 @@ class FastBotBuilder:
         return self
 
     def _get_or_create_cen(self) -> ContextEngine:
-        if "cen" in self.dependency_container._dependencies:
-            return self.dependency_container._dependencies["cen"]
+        for dependency in self.dependency_container._dependencies.values():
+            if isinstance(dependency, ContextEngine):
+                return dependency
 
         cen = ContextEngine()
         self.add_dependency("cen", cen)
