@@ -1,0 +1,15 @@
+# Environment
+.env
+*.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+
+# Static files
+/static/*
+!static/.gitkeep
