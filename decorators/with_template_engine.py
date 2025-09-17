@@ -2,7 +2,7 @@ from functools import wraps
 from aiogram.enums import ParseMode
 from aiogram import types
 
-from FastBot.engine import TemplateEngine
+from fastbot.engine import TemplateEngine
 
 
 def apply_decorators(*decorators):

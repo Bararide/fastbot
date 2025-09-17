@@ -9,8 +9,8 @@ from typing import (
 
 from aiogram.types import TelegramObject
 
-from FastBot.logger import Logger
-from FastBot.core import Result
+from fastbot.logger import Logger
+from fastbot.core import Result
 
 
 class DependencyContainer:

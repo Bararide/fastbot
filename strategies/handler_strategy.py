@@ -9,7 +9,7 @@ from aiogram.filters import BaseFilter
 from aiogram.types import Message, CallbackQuery, InlineQuery
 from aiogram.types.base import TelegramObject
 
-from FastBot.logger import Logger
+from fastbot.logger import Logger
 
 
 class HandlerStrategy:

@@ -35,7 +35,7 @@ from aiogram.utils.markdown import (
 )
 from aiogram.enums import ParseMode
 
-from FastBot.logger import Logger
+from fastbot.logger import Logger
 
 
 class TemplateEngineError(Exception):

@@ -1,7 +1,8 @@
 from typing import (
+    AsyncIterator,
+    Iterator,
     TypeVar,
     Generic,
-    Union,
     Optional,
     Callable,
     Any,
@@ -11,8 +12,7 @@ from typing import (
 
 import inspect
 from collections.abc import Awaitable
-from FastBot.engine import ContextEngine
-from FastBot.logger import Logger
+from fastbot.logger import Logger
 
 from functools import wraps
 
@@ -79,6 +79,27 @@ class Result(Generic[T, E]):
         if self._is_ok:
             return fn(self._value)
         return Err(self._error)
+
+    def __iter__(self) -> Iterator[T]:
+        if self._is_ok:
+            if isinstance(self._value, (list, tuple, set)):
+                yield from self._value
+            else:
+                yield self._value
+        else:
+            return
+            yield
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        async def async_gen():
+            if self._is_ok:
+                if isinstance(self._value, (list, tuple, set)):
+                    for item in self._value:
+                        yield item
+                else:
+                    yield self._value
+
+        return async_gen()
 
     async def and_then_async(
         self, fn: Callable[[T], Awaitable["Result[U, E]"]]

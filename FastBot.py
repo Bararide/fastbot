@@ -32,14 +32,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from FastBot.engine import ContextEngine
-from FastBot.logger import Logger
+from fastbot.engine import ContextEngine
+from fastbot.logger import Logger
 
-from FastBot.MiniApp import MiniAppConfig, MiniAppManager
-from FastBot.filters import StateFilter
-from FastBot.DI import DependencyContainer
-from FastBot.configs import HandlerConfig
-from FastBot.strategies import HandlerStrategy
+from fastbot.MiniApp import MiniAppConfig, MiniAppManager
+from fastbot.filters import StateFilter
+from fastbot.DI import DependencyContainer
+from fastbot.configs import HandlerConfig
+from fastbot.strategies import HandlerStrategy
 
 
 class FastBotError(Exception):

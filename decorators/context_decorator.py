@@ -3,7 +3,7 @@ from typing import Callable, Optional
 
 import inspect
 
-from FastBot.engine import ContextEngine
+from fastbot.engine import ContextEngine
 
 
 def register_context(
