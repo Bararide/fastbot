@@ -27,7 +27,7 @@ from aiogram.types import Message, CallbackQuery, InlineQuery
 from aiogram.types.base import TelegramObject
 from aiogram.fsm.state import State
 
-from fastapi import FastAPI, WebSocket, APIRouter, Depends, HTTPException
+from fastapi import FastAPI, Request, WebSocket, APIRouter, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
@@ -786,77 +786,93 @@ class FastBotBuilder:
     def _setup_http_handlers(self, app: FastAPI):
         """Настройка HTTP handlers для FastAPI приложения"""
         if not self._http_handlers:
+            Logger.info("No HTTP handlers to register")
             return
 
-        http_router = APIRouter(prefix="/api/v1", tags=["API"])
+        api_router = APIRouter(prefix="/api/v1", tags=["API"])
+
+        root_router = APIRouter()
 
         for handler_config in self._http_handlers:
 
-            async def wrapped_handler(*args, **kwargs):
-                try:
-                    request = None
-                    for arg in args:
-                        if hasattr(arg, "method") and hasattr(arg, "url"):
-                            request = arg
-                            break
-
-                    if not request:
-                        for key, value in kwargs.items():
-                            if hasattr(value, "method") and hasattr(value, "url"):
-                                request = value
-                                break
-
-                    resolved_deps = {}
-                    if request:
+            def create_wrapped_handler(handler_cfg):
+                async def wrapped_handler(request: Request, **kwargs):
+                    try:
                         resolved_deps = await self.dependency_container.resolve(
-                            request, handler_config.dependencies
+                            request, handler_cfg.dependencies
                         )
 
-                    sig = inspect.signature(handler_config.handler)
-                    bound_args = {}
+                        sig = inspect.signature(handler_cfg.handler)
+                        bound_args = {}
 
-                    for name, param in sig.parameters.items():
-                        if name in kwargs:
-                            bound_args[name] = kwargs[name]
-                        elif param.annotation != param.empty:
-                            for dep in resolved_deps.values():
-                                if isinstance(dep, param.annotation):
-                                    bound_args[name] = dep
-                                    break
-                        elif name in resolved_deps:
-                            bound_args[name] = resolved_deps[name]
+                        if "request" in sig.parameters:
+                            bound_args["request"] = request
 
-                    if inspect.iscoroutinefunction(handler_config.handler):
-                        result = await handler_config.handler(**bound_args)
-                    else:
-                        result = handler_config.handler(**bound_args)
+                        for name, param in sig.parameters.items():
+                            if name in bound_args:
+                                continue
 
-                    return result
+                            if param.annotation != param.empty:
+                                for dep in resolved_deps.values():
+                                    if isinstance(dep, param.annotation):
+                                        bound_args[name] = dep
+                                        break
+                            elif name in resolved_deps:
+                                bound_args[name] = resolved_deps[name]
+                            elif name in kwargs:
+                                bound_args[name] = kwargs[name]
 
-                except Exception as e:
-                    Logger.error(
-                        f"Error in HTTP handler {handler_config.handler.__name__}: {e}"
-                    )
-                    raise HTTPException(status_code=500, detail=str(e))
+                        if inspect.iscoroutinefunction(handler_cfg.handler):
+                            result = await handler_cfg.handler(**bound_args)
+                        else:
+                            result = handler_cfg.handler(**bound_args)
 
-            if handler_config.method == "GET":
-                http_router.get(handler_config.path)(wrapped_handler)
-            elif handler_config.method == "POST":
-                http_router.post(handler_config.path)(wrapped_handler)
-            elif handler_config.method == "PUT":
-                http_router.put(handler_config.path)(wrapped_handler)
-            elif handler_config.method == "DELETE":
-                http_router.delete(handler_config.path)(wrapped_handler)
-            elif handler_config.method == "PATCH":
-                http_router.patch(handler_config.path)(wrapped_handler)
-            elif handler_config.method == "WEBSOCKET":
-                http_router.websocket(handler_config.path)(wrapped_handler)
+                        return result
+
+                    except Exception as e:
+                        Logger.error(
+                            f"Error in HTTP handler {handler_cfg.handler.__name__}: {e}"
+                        )
+                        raise HTTPException(status_code=500, detail=str(e))
+
+                wrapped_handler.__name__ = f"wrapped_{handler_cfg.handler.__name__}"
+                return wrapped_handler
+
+            wrapped_handler = create_wrapped_handler(handler_config)
+
+            target_router = (
+                api_router if handler_config.path.startswith("/api/") else root_router
+            )
+            actual_path = (
+                handler_config.path.replace("/api/v1", "")
+                if handler_config.path.startswith("/api/v1")
+                else handler_config.path
+            )
+
+            match(
+                handler_config.method,
+                "GET",
+                target_router.get(actual_path)(wrapped_handler),
+                "POST",
+                target_router.post(actual_path)(wrapped_handler),
+                "PUT",
+                target_router.put(actual_path)(wrapped_handler),
+                "DELETE",
+                target_router.delete(actual_path)(wrapped_handler),
+                "PATCH",
+                target_router.patch(actual_path)(wrapped_handler),
+                "WEBSOCKET",
+                target_router.websocket(actual_path)(wrapped_handler),
+            )
 
             Logger.info(
                 f"HTTP handler registered: {handler_config.method} {handler_config.path}"
             )
 
-        app.include_router(http_router)
+        if api_router.routes:
+            app.include_router(api_router)
+        if root_router.routes:
+            app.include_router(root_router)
 
     async def _handle_web_app_data(self, message: types.Message):
         try:
