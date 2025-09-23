@@ -8,6 +8,8 @@ from .with_template_engine import (
     with_auto_reply,
 )
 
+from .dependencies import inject
+
 from .reply_menu_decorator import menu, menu_handler
 
 __all__ = [
@@ -19,4 +21,5 @@ __all__ = [
     "with_auto_reply",
     "menu",
     "menu_handler",
+    "inject",
 ]
