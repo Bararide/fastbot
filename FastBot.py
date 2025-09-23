@@ -783,6 +783,81 @@ class FastBotBuilder:
             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[[button]]),
         )
 
+    def _setup_http_handlers(self, app: FastAPI):
+        """Настройка HTTP handlers для FastAPI приложения"""
+        if not self._http_handlers:
+            return
+
+        http_router = APIRouter(prefix="/api/v1", tags=["API"])
+
+        for handler_config in self._http_handlers:
+
+            async def wrapped_handler(*args, **kwargs):
+                try:
+                    request = None
+                    for arg in args:
+                        if hasattr(arg, "method") and hasattr(arg, "url"):
+                            request = arg
+                            break
+
+                    if not request:
+                        for key, value in kwargs.items():
+                            if hasattr(value, "method") and hasattr(value, "url"):
+                                request = value
+                                break
+
+                    resolved_deps = {}
+                    if request:
+                        resolved_deps = await self.dependency_container.resolve(
+                            request, handler_config.dependencies
+                        )
+
+                    sig = inspect.signature(handler_config.handler)
+                    bound_args = {}
+
+                    for name, param in sig.parameters.items():
+                        if name in kwargs:
+                            bound_args[name] = kwargs[name]
+                        elif param.annotation != param.empty:
+                            for dep in resolved_deps.values():
+                                if isinstance(dep, param.annotation):
+                                    bound_args[name] = dep
+                                    break
+                        elif name in resolved_deps:
+                            bound_args[name] = resolved_deps[name]
+
+                    if inspect.iscoroutinefunction(handler_config.handler):
+                        result = await handler_config.handler(**bound_args)
+                    else:
+                        result = handler_config.handler(**bound_args)
+
+                    return result
+
+                except Exception as e:
+                    Logger.error(
+                        f"Error in HTTP handler {handler_config.handler.__name__}: {e}"
+                    )
+                    raise HTTPException(status_code=500, detail=str(e))
+
+            if handler_config.method == "GET":
+                http_router.get(handler_config.path)(wrapped_handler)
+            elif handler_config.method == "POST":
+                http_router.post(handler_config.path)(wrapped_handler)
+            elif handler_config.method == "PUT":
+                http_router.put(handler_config.path)(wrapped_handler)
+            elif handler_config.method == "DELETE":
+                http_router.delete(handler_config.path)(wrapped_handler)
+            elif handler_config.method == "PATCH":
+                http_router.patch(handler_config.path)(wrapped_handler)
+            elif handler_config.method == "WEBSOCKET":
+                http_router.websocket(handler_config.path)(wrapped_handler)
+
+            Logger.info(
+                f"HTTP handler registered: {handler_config.method} {handler_config.path}"
+            )
+
+        app.include_router(http_router)
+
     async def _handle_web_app_data(self, message: types.Message):
         try:
             data = json.loads(message.web_app_data.data)
@@ -804,20 +879,17 @@ class FastBotBuilder:
 
         bot_instance = FastBot(self._bot, self._dp)
 
-        # Передаем HTTP handlers в экземпляр бота
-        bot_instance._http_handlers = self._http_handlers
+        app = FastAPI()
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
         if self._mini_app_config:
-            Logger.info("Creating FastAPI app for MiniApp...")
-
-            app = FastAPI()
-            app.add_middleware(
-                CORSMiddleware,
-                allow_origins=["*"],
-                allow_credentials=True,
-                allow_methods=["*"],
-                allow_headers=["*"],
-            )
+            Logger.info("Configuring MiniApp...")
 
             if self._mini_app_config.static_dir and os.path.exists(
                 self._mini_app_config.static_dir
@@ -846,18 +918,16 @@ class FastBotBuilder:
                 async def websocket_endpoint(websocket: WebSocket):
                     await self._mini_app_config.ws_handler(websocket)
 
-            bot_instance.app = app
-            Logger.info("FastAPI app created and configured")
-
-            # Настраиваем HTTP handlers после создания приложения
-            bot_instance._setup_http_handlers()
-
-            # Добавляем готовые роутеры если есть
-            if hasattr(self, "_http_routers"):
-                for router in self._http_routers:
-                    bot_instance.app.include_router(router)
-
             self._setup_mini_app_handlers()
+
+        self._setup_http_handlers(app)
+
+        if hasattr(self, "_http_routers"):
+            for router in self._http_routers:
+                app.include_router(router)
+
+        bot_instance.app = app
+        Logger.info("FastAPI app created and configured")
 
         for key in self.dependency_container._dependencies:
             bot_instance.add_dependency(
