@@ -1,3 +1,3 @@
-from .configs import HandlerConfig
+from .configs import HandlerConfig, HTTPHandlerConfig
 
-__all__ = ["HandlerConfig"]
+__all__ = ["HandlerConfig", "HTTPHandlerConfig"]

@@ -27,9 +27,10 @@ from aiogram.types import Message, CallbackQuery, InlineQuery
 from aiogram.types.base import TelegramObject
 from aiogram.fsm.state import State
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, APIRouter, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 import uvicorn
 
 from fastbot.engine import ContextEngine
@@ -38,7 +39,7 @@ from fastbot.logger import Logger
 from fastbot.MiniApp import MiniAppConfig, MiniAppManager
 from fastbot.filters import StateFilter
 from fastbot.DI import DependencyContainer
-from fastbot.configs import HandlerConfig
+from fastbot.configs import HandlerConfig, HTTPHandlerConfig
 from fastbot.strategies import HandlerStrategy
 
 
@@ -78,6 +79,7 @@ class FastBot:
         self.mini_app: Optional[MiniAppManager] = None
         self.app: Optional[FastAPI] = None
         self.handler_strategy = HandlerStrategy()
+        self._http_handlers: List[HTTPHandlerConfig] = []
 
         self.dp.include_router(self._default_router)
 
@@ -127,12 +129,12 @@ class FastBot:
             return
 
         Logger.info(f"Starting FastAPI server on port {port}")
-        config = uvicorn.Config(self.app, host="0.0.0.0", port=port, log_level="info")
+        config = uvicorn.Config(self.app, host="127.0.0.1", port=port, log_level="info")
         server = uvicorn.Server(config)
         await server.serve()
 
     async def start_with_webhook(
-        self, webhook_url: str, host: str = "0.0.0.0", port: int = 8000
+        self, webhook_url: str, host: str = "127.0.0.1", port: int = 8000
     ) -> None:
         """Start bot with webhook and Mini App server"""
         if not self.mini_app:
@@ -169,6 +171,84 @@ class FastBot:
     def default_router(self) -> Router:
         return self._default_router
 
+    def _wrap_http_handler(self, handler: Callable, dependencies: dict) -> Callable:
+        """Обертка для HTTP handlers с поддержкой DI"""
+
+        async def wrapped_handler(*args, **kwargs):
+            try:
+                request = None
+                for arg in args:
+                    if hasattr(arg, "method") and hasattr(arg, "url"):
+                        request = arg
+                        break
+
+                if not request:
+                    for key, value in kwargs.items():
+                        if hasattr(value, "method") and hasattr(value, "url"):
+                            request = value
+                            break
+
+                resolved_deps = await self.dependency_container.resolve(
+                    request, dependencies
+                )
+
+                sig = inspect.signature(handler)
+                bound_args = {}
+
+                for name, param in sig.parameters.items():
+                    if name in kwargs:
+                        bound_args[name] = kwargs[name]
+                    elif param.annotation != param.empty:
+                        for dep in resolved_deps.values():
+                            if isinstance(dep, param.annotation):
+                                bound_args[name] = dep
+                                break
+                    elif name in resolved_deps:
+                        bound_args[name] = resolved_deps[name]
+
+                if inspect.iscoroutinefunction(handler):
+                    return await handler(**bound_args)
+                else:
+                    return handler(**bound_args)
+
+            except Exception as e:
+                Logger.error(f"Error in HTTP handler {handler.__name__}: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        wrapped_handler.__name__ = handler.__name__
+        return wrapped_handler
+
+    def _setup_http_handlers(self):
+        """Настройка HTTP handlers после создания FastAPI приложения"""
+        if not self.app:
+            return
+
+        http_router = APIRouter(prefix="/api/v1", tags=["API"])
+
+        for handler_config in self._http_handlers:
+            wrapped_handler = self._wrap_http_handler(
+                handler_config.handler, handler_config.dependencies
+            )
+
+            if handler_config.method == "GET":
+                http_router.get(handler_config.path)(wrapped_handler)
+            elif handler_config.method == "POST":
+                http_router.post(handler_config.path)(wrapped_handler)
+            elif handler_config.method == "PUT":
+                http_router.put(handler_config.path)(wrapped_handler)
+            elif handler_config.method == "DELETE":
+                http_router.delete(handler_config.path)(wrapped_handler)
+            elif handler_config.method == "PATCH":
+                http_router.patch(handler_config.path)(wrapped_handler)
+            elif handler_config.method == "WEBSOCKET":
+                http_router.websocket(handler_config.path)(wrapped_handler)
+
+            Logger.info(
+                f"HTTP handler registered: {handler_config.method} {handler_config.path}"
+            )
+
+        self.app.include_router(http_router)
+
 
 class FastBotBuilder:
     def __init__(self):
@@ -179,6 +259,7 @@ class FastBotBuilder:
         self._callback_query_middlewares: List[Callable] = []
         self._inline_query_middlewares: List[Callable] = []
         self._handlers: List[HandlerConfig] = []
+        self._http_handlers: List[HTTPHandlerConfig] = []
         self._default_router = Router(name="default_router")
         self._error_handler: Optional[Callable] = None
         self._default_commands: List[Tuple[str, str]] = []
@@ -468,6 +549,81 @@ class FastBotBuilder:
             self.add_context(func)
         return self
 
+    def add_get_handler(
+        self,
+        path: str,
+        handler: Callable,
+        dependencies: Optional[Dict[str, Any]] = None,
+    ) -> "FastBotBuilder":
+        """Добавить GET handler"""
+        return self._add_http_handler("GET", path, handler, dependencies or {})
+
+    def add_post_handler(
+        self,
+        path: str,
+        handler: Callable,
+        dependencies: Optional[Dict[str, Any]] = None,
+    ) -> "FastBotBuilder":
+        """Добавить POST handler"""
+        return self._add_http_handler("POST", path, handler, dependencies or {})
+
+    def add_put_handler(
+        self,
+        path: str,
+        handler: Callable,
+        dependencies: Optional[Dict[str, Any]] = None,
+    ) -> "FastBotBuilder":
+        """Добавить PUT handler"""
+        return self._add_http_handler("PUT", path, handler, dependencies or {})
+
+    def add_delete_handler(
+        self,
+        path: str,
+        handler: Callable,
+        dependencies: Optional[Dict[str, Any]] = None,
+    ) -> "FastBotBuilder":
+        """Добавить DELETE handler"""
+        return self._add_http_handler("DELETE", path, handler, dependencies or {})
+
+    def add_patch_handler(
+        self,
+        path: str,
+        handler: Callable,
+        dependencies: Optional[Dict[str, Any]] = None,
+    ) -> "FastBotBuilder":
+        """Добавить PATCH handler"""
+        return self._add_http_handler("PATCH", path, handler, dependencies or {})
+
+    def add_websocket_handler(
+        self,
+        path: str,
+        handler: Callable,
+        dependencies: Optional[Dict[str, Any]] = None,
+    ) -> "FastBotBuilder":
+        """Добавить WebSocket handler"""
+        return self._add_http_handler("WEBSOCKET", path, handler, dependencies or {})
+
+    def _add_http_handler(
+        self, method: str, path: str, handler: Callable, dependencies: Dict[str, Any]
+    ) -> "FastBotBuilder":
+        """Базовый метод для добавления HTTP handlers"""
+        handler_config = HTTPHandlerConfig(
+            method=method, path=path, handler=handler, dependencies=dependencies
+        )
+
+        self._http_handlers.append(handler_config)
+        Logger.info(f"HTTP handler added: {method} {path}")
+        return self
+
+    def add_http_router(self, router: APIRouter) -> "FastBotBuilder":
+        """Добавить готовый FastAPI роутер"""
+        if not hasattr(self, "_http_routers"):
+            self._http_routers = []
+
+        self._http_routers.append(router)
+        Logger.info(f"HTTP router added: {router.prefix if router.prefix else '/'}")
+        return self
+
     def _get_or_create_cen(self) -> ContextEngine:
         for dependency in self.dependency_container._dependencies.values():
             if isinstance(dependency, ContextEngine):
@@ -648,6 +804,9 @@ class FastBotBuilder:
 
         bot_instance = FastBot(self._bot, self._dp)
 
+        # Передаем HTTP handlers в экземпляр бота
+        bot_instance._http_handlers = self._http_handlers
+
         if self._mini_app_config:
             Logger.info("Creating FastAPI app for MiniApp...")
 
@@ -689,6 +848,14 @@ class FastBotBuilder:
 
             bot_instance.app = app
             Logger.info("FastAPI app created and configured")
+
+            # Настраиваем HTTP handlers после создания приложения
+            bot_instance._setup_http_handlers()
+
+            # Добавляем готовые роутеры если есть
+            if hasattr(self, "_http_routers"):
+                for router in self._http_routers:
+                    bot_instance.app.include_router(router)
 
             self._setup_mini_app_handlers()
 

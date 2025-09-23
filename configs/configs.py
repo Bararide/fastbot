@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
@@ -27,3 +28,15 @@ class HandlerConfig:
         self.event_type = event_type
         self.router = router
         self.dependencies = dependencies or {}
+
+
+@dataclass
+class HTTPHandlerConfig:
+    method: str
+    path: str
+    handler: Callable
+    dependencies: Dict[str, Any] = None
+
+    def __post_init__(self):
+        if self.dependencies is None:
+            self.dependencies = {}
