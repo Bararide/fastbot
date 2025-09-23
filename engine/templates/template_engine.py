@@ -274,6 +274,27 @@ class TemplateEngine:
             template_data["reply_markup"] = reply_markup
 
         return template_data
+    
+    async def render_html_template(
+        self,
+        template_name: str,
+        context: Optional[dict] = None,
+        **kwargs,
+    ) -> str:
+        try:
+            template = await self._get_template(template_name)
+            rendered = await template.render_async(**(context or {}))
+            return rendered
+        except TemplateNotFound as e:
+            raise TemplateNotFoundError(f"HTML template not found: {template_name}") from e
+        except TemplateSyntaxError as e:
+            raise TemplateSyntaxError(
+                f"Syntax error in HTML template {template_name}: {e}"
+            ) from e
+        except (TemplateRuntimeError, UndefinedError) as e:
+            raise TemplateRenderError(f"Error rendering HTML template {template_name}: {e}") from e
+        except Exception as e:
+            raise TemplateEngineError(f"Unexpected error in HTML template {template_name}: {e}") from e
 
     async def generate_inline_keyboard(
         self, buttons: List[Dict[str, Any]], row_width: int = 3, **kwargs
