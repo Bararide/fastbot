@@ -13,6 +13,7 @@ from .decorators import (
     with_template_engine,
     register_context,
     with_parse_mode,
+    inject,
 )
 
 from .core import Result, Ok, Err, result_try
@@ -22,6 +23,8 @@ from .logger import logger
 from .configs import HandlerConfig
 
 from .filters import StateFilter
+
+from .dependencies import get_context_engine, get_template_engine, get_web_engine
 
 __all__ = [
     "Result",
@@ -43,4 +46,8 @@ __all__ = [
     "HandlerConfig",
     "StateFilter",
     "with_parse_mode",
+    "get_context_engine",
+    "get_template_engine",
+    "get_web_engine",
+    "inject",
 ]
