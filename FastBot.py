@@ -603,6 +603,18 @@ class FastBotBuilder:
         """Добавить WebSocket handler"""
         return self._add_http_handler("WEBSOCKET", path, handler, dependencies or {})
 
+    def create_depends(self, dependency_key: str):
+        """Создает зависимость FastAPI для указанного ключа"""
+
+        def dependency(request: Request):
+            if hasattr(request.app.state, "bot_instance"):
+                bot_instance = request.app.state.bot_instance
+                return bot_instance.get_dependency(dependency_key)
+            else:
+                raise HTTPException(status_code=500, detail="Bot instance not found")
+
+        return Depends(dependency)
+
     def _add_http_handler(
         self, method: str, path: str, handler: Callable, dependencies: Dict[str, Any]
     ) -> "FastBotBuilder":
@@ -903,6 +915,8 @@ class FastBotBuilder:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+        app.state.bot_instance = bot_instance
 
         if self._mini_app_config:
             Logger.info("Configuring MiniApp...")
