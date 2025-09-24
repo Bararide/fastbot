@@ -104,9 +104,6 @@ class Event:
         return Ok(True)
 
     async def trigger(self, *args, **kwargs) -> Result[List[Any], Exception]:
-        """
-        Trigger event and collect results from all handlers
-        """
         results = []
         handlers_to_remove = []
 
