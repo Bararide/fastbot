@@ -101,6 +101,13 @@ class Result(Generic[T, E]):
 
         return async_gen()
 
+    def __len__(self) -> int:
+        if self._is_ok:
+            if isinstance(self._value, (list, tuple, set)):
+                return len(self._value)
+            return 1
+        return 0
+
     async def and_then_async(
         self, fn: Callable[[T], Awaitable["Result[U, E]"]]
     ) -> "Result[U, E]":

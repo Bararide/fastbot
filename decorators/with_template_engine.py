@@ -111,6 +111,9 @@ def with_auto_reply(template_name, buttons_template=None):
 
             func_result = await func(*args, **kwargs)
 
+            if func_result is not None:
+                return func_result
+
             if isinstance(func_result, dict) and "context" in func_result:
                 context = func_result["context"]
             else:
