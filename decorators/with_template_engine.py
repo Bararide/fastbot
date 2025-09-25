@@ -76,6 +76,7 @@ def with_auto_reply(template_name, buttons_template=None):
         async def wrapper(*args, **kwargs):
             message = None
             callback = None
+            this_context = True
 
             for arg in args:
                 if isinstance(arg, types.Message):
@@ -111,12 +112,7 @@ def with_auto_reply(template_name, buttons_template=None):
 
             func_result = await func(*args, **kwargs)
 
-            if func_result is not None:
-                return func_result
-
-            if isinstance(func_result, dict) and "context" in func_result:
-                context = func_result["context"]
-            else:
+            if func_result is None:
                 context = {
                     "user": kwargs.get("user"),
                     "message": message,
@@ -127,19 +123,47 @@ def with_auto_reply(template_name, buttons_template=None):
                         if k not in ["template_engine", "message", "callback"]
                     },
                 }
+                template_to_use = template_name
+                buttons_to_use = buttons_template
+
+            elif isinstance(func_result, dict):
+                if func_result.get("skip_render"):
+                    return func_result
+
+                template_to_use = func_result.get("template_name", template_name)
+                buttons_to_use = func_result.get("buttons_template", buttons_template)
+
+                this_context = False
+
+                if "context" in func_result:
+                    context = func_result["context"]
+                else:
+                    context = {
+                        "user": kwargs.get("user"),
+                        "message": message,
+                        "callback": callback,
+                        **func_result,
+                        **{
+                            k: v
+                            for k, v in kwargs.items()
+                            if k not in ["template_engine", "message", "callback"]
+                        },
+                    }
+            else:
+                return func_result
 
             reply_params = {
                 "message": message,
-                "template_name": template_name,
+                "template_name": template_to_use,
                 "context": context,
                 "parse_mode": ParseMode.HTML,
                 "row_width": 2,
             }
 
-            if buttons_template:
+            if buttons_to_use and this_context:
                 if isinstance(func_result, dict) and "buttons_context" in func_result:
                     reply_params["buttons_context"] = func_result["buttons_context"]
-                reply_params["buttons_template"] = buttons_template
+                reply_params["buttons_template"] = buttons_to_use
 
             return await ten.reply(**reply_params)
 
