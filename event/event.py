@@ -40,9 +40,6 @@ class Event:
         priority: EventPriority = EventPriority.NORMAL,
         one_shot: bool = False,
     ) -> Result[bool, Exception]:
-        """
-        Add event handler with various options
-        """
         if callable(handler):
             handler_name = name or handler.__name__
             callback = handler
@@ -81,9 +78,6 @@ class Event:
     async def remove(
         self, handler_identifier: Union[str, Callable]
     ) -> Result[bool, Exception]:
-        """
-        Remove handler by name or callback function
-        """
         handler_name = None
 
         if isinstance(handler_identifier, str):
@@ -143,9 +137,6 @@ class Event:
             return Err(e)
 
     async def trigger_parallel(self, *args, **kwargs) -> Result[List[Any], Exception]:
-        """
-        Trigger event with parallel execution of async handlers
-        """
         async_handlers = []
         sync_handlers = []
         handlers_to_remove = []
@@ -204,7 +195,6 @@ class Event:
             return Err(e)
 
     async def _execute_handler(self, handler: EventHandler, *args, **kwargs) -> Any:
-        """Execute single handler with error handling"""
         try:
             return await handler.callback(*args, **kwargs)
         except Exception as e:
@@ -212,7 +202,6 @@ class Event:
             raise
 
     def has_handler(self, handler_identifier: Union[str, Callable]) -> bool:
-        """Check if handler exists"""
         if isinstance(handler_identifier, str):
             return handler_identifier in self._handlers
         elif callable(handler_identifier):
@@ -223,7 +212,6 @@ class Event:
         return False
 
     def get_handler_count(self) -> int:
-        """Get total number of handlers"""
         return len(self._handlers)
 
     def clear(self) -> None:
@@ -234,7 +222,6 @@ class Event:
         self._weak_handlers.clear()
 
     def list_handlers(self) -> List[Dict[str, Any]]:
-        """Get list of all handlers with their properties"""
         return [
             {
                 "name": handler.name,
@@ -247,10 +234,6 @@ class Event:
 
 
 class EventManager:
-    """
-    Manager for multiple events with namespacing support
-    """
-
     def __init__(self):
         self._events: Dict[str, Event] = {}
         self._namespaces: Dict[str, Dict[str, Event]] = {}
@@ -259,7 +242,6 @@ class EventManager:
     async def create_event(
         self, event_name: str, namespace: str = "global"
     ) -> Result[Event, Exception]:
-        """Create a new event in specified namespace"""
         if namespace not in self._namespaces:
             self._namespaces[namespace] = {}
 
@@ -277,7 +259,6 @@ class EventManager:
         return Ok(event)
 
     def get_event(self, event_name: str, namespace: str = "global") -> Optional[Event]:
-        """Get event by name and namespace"""
         if namespace in self._namespaces:
             return self._namespaces[namespace].get(event_name)
         return None
@@ -286,7 +267,6 @@ class EventManager:
     async def remove_event(
         self, event_name: str, namespace: str = "global"
     ) -> Result[bool, Exception]:
-        """Remove event from namespace"""
         if (
             namespace not in self._namespaces
             or event_name not in self._namespaces[namespace]
@@ -307,7 +287,6 @@ class EventManager:
     async def trigger_event(
         self, event_name: str, *args, namespace: str = "global", **kwargs
     ) -> Result[List[Any], Exception]:
-        """Trigger event by name"""
         event = self.get_event(event_name, namespace)
         if not event:
             return Err(
@@ -317,7 +296,6 @@ class EventManager:
         return await event.trigger(*args, **kwargs)
 
     def get_namespace_events(self, namespace: str = "global") -> List[str]:
-        """Get all event names in namespace"""
         if namespace in self._namespaces:
             return list(self._namespaces[namespace].keys())
         return []
@@ -328,8 +306,6 @@ def event_handler(
     priority: EventPriority = EventPriority.NORMAL,
     one_shot: bool = False,
 ):
-    """Decorator for event handlers"""
-
     def decorator(func):
         func._event_handler = {
             "name": name or func.__name__,
@@ -342,14 +318,11 @@ def event_handler(
 
 
 class EventMixin:
-    """Mixin class for adding event capabilities to other classes"""
-
     def __init__(self):
         self._events: Dict[str, Event] = {}
         self._event_manager = EventManager()
 
     def create_event(self, event_name: str) -> Event:
-        """Create event for this instance"""
         event = Event(event_name)
         self._events[event_name] = event
         return event
@@ -357,7 +330,6 @@ class EventMixin:
     def on(
         self, event_name: str, handler: Callable, **kwargs
     ) -> Result[bool, Exception]:
-        """Subscribe to event"""
         if event_name not in self._events:
             return Err(ValueError(f"Event '{event_name}' not found"))
 
@@ -366,7 +338,6 @@ class EventMixin:
     async def emit(
         self, event_name: str, *args, **kwargs
     ) -> Result[List[Any], Exception]:
-        """Emit event"""
         if event_name not in self._events:
             return Err(ValueError(f"Event '{event_name}' not found"))
 
