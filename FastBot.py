@@ -16,6 +16,8 @@ from typing import (
     Awaitable,
 )
 
+from asyncio import Future
+
 from pampy import match, _
 
 from aiogram import F, Bot, Dispatcher, Router, types
@@ -402,14 +404,14 @@ class FastBotBuilder:
 
         return self
 
-    def add_handler(
+    async def add_handler(
         self,
         handler: Callable,
         *filters: Union[BaseFilter, State],
         event_type: Type[TelegramObject] = Message,
         router: Optional[Router] = None,
         dependencies: Optional[Dict[str, Any]] = None,
-    ) -> "FastBotBuilder":
+    ) -> Future["FastBotBuilder"]:
         handler_name = self._get_handler_name(handler)
 
         base_filters = []
@@ -471,13 +473,13 @@ class FastBotBuilder:
 
         return self.add_command_handler(command, wrapped_handler, description, router)
 
-    def add_command_handler(
+    async def add_command_handler(
         self,
         command: Union[str, List[str]],
         handler: Callable,
         description: Optional[str] = None,
         router: Optional[Router] = None,
-    ) -> "FastBotBuilder":
+    ) -> Future["FastBotBuilder"]:
         commands = [command] if isinstance(command, str) else command
 
         original_handler = handler.func if hasattr(handler, "func") else handler
@@ -490,38 +492,44 @@ class FastBotBuilder:
         Logger.info(
             f"Registering command handler: {handler_name} for commands: {commands}"
         )
-        return self.add_handler(handler, Command(commands=commands), router=router)
+        return await self.add_handler(
+            handler, Command(commands=commands), router=router
+        )
 
-    def add_callback_query_handler(
+    async def add_callback_query_handler(
         self, handler: Callable, *filters: BaseFilter, router: Optional[Router] = None
-    ) -> "FastBotBuilder":
-        return self.add_handler(
+    ) -> Future["FastBotBuilder"]:
+        return await self.add_handler(
             handler, *filters, event_type=CallbackQuery, router=router
         )
 
-    def add_inline_query_handler(
+    async def add_inline_query_handler(
         self, handler: Callable, *filters: BaseFilter, router: Optional[Router] = None
-    ) -> "FastBotBuilder":
-        return self.add_handler(
+    ) -> Future["FastBotBuilder"]:
+        return await self.add_handler(
             handler, *filters, event_type=InlineQuery, router=router
         )
 
-    def set_error_handler(self, handler: Callable) -> "FastBotBuilder":
+    async def set_error_handler(self, handler: Callable) -> Future["FastBotBuilder"]:
         self._error_handler = handler
         Logger.info(f"Error handler set: {handler.__name__}")
         return self
 
-    def add_startup_callback(self, callback: Callable) -> "FastBotBuilder":
+    async def add_startup_callback(
+        self, callback: Callable
+    ) -> Future["FastBotBuilder"]:
         self._startup_callbacks.append(callback)
         Logger.info(f"Startup callback added: {callback.__name__}")
         return self
 
-    def add_shutdown_callback(self, callback: Callable) -> "FastBotBuilder":
+    async def add_shutdown_callback(
+        self, callback: Callable
+    ) -> Future["FastBotBuilder"]:
         self._shutdown_callbacks.append(callback)
         Logger.info(f"Shutdown callback added: {callback.__name__}")
         return self
 
-    def get_router(self, name: str) -> Router:
+    async def get_router(self, name: str) -> Router:
         for router in self._routers:
             if router.name == name:
                 return router
@@ -532,8 +540,8 @@ class FastBotBuilder:
         Logger.info(f"Default rate limit set to {rate_limit} seconds")
         return self
 
-    def add_context(self, context_func: Callable) -> "FastBotBuilder":
-        cen = self._get_or_create_cen()
+    async def add_context(self, context_func: Callable) -> "FastBotBuilder":
+        cen = await self._get_or_create_cen()
 
         context_name = (
             getattr(context_func, "_context_name", None) or context_func.__name__
@@ -544,68 +552,60 @@ class FastBotBuilder:
 
         return self
 
-    def add_contexts(self, context_funcs: List[Callable]) -> "FastBotBuilder":
+    async def add_contexts(self, context_funcs: List[Callable]) -> "FastBotBuilder":
         for func in context_funcs:
-            self.add_context(func)
+            await self.add_context(func)
         return self
 
-    def add_get_handler(
+    async def add_get_handler(
         self,
         path: str,
         handler: Callable,
         dependencies: Optional[Dict[str, Any]] = None,
     ) -> "FastBotBuilder":
-        """Добавить GET handler"""
         return self._add_http_handler("GET", path, handler, dependencies or {})
 
-    def add_post_handler(
+    async def add_post_handler(
         self,
         path: str,
         handler: Callable,
         dependencies: Optional[Dict[str, Any]] = None,
     ) -> "FastBotBuilder":
-        """Добавить POST handler"""
         return self._add_http_handler("POST", path, handler, dependencies or {})
 
-    def add_put_handler(
+    async def add_put_handler(
         self,
         path: str,
         handler: Callable,
         dependencies: Optional[Dict[str, Any]] = None,
     ) -> "FastBotBuilder":
-        """Добавить PUT handler"""
         return self._add_http_handler("PUT", path, handler, dependencies or {})
 
-    def add_delete_handler(
+    async def add_delete_handler(
         self,
         path: str,
         handler: Callable,
         dependencies: Optional[Dict[str, Any]] = None,
     ) -> "FastBotBuilder":
-        """Добавить DELETE handler"""
         return self._add_http_handler("DELETE", path, handler, dependencies or {})
 
-    def add_patch_handler(
+    async def add_patch_handler(
         self,
         path: str,
         handler: Callable,
         dependencies: Optional[Dict[str, Any]] = None,
     ) -> "FastBotBuilder":
-        """Добавить PATCH handler"""
         return self._add_http_handler("PATCH", path, handler, dependencies or {})
 
-    def add_websocket_handler(
+    async def add_websocket_handler(
         self,
         path: str,
         handler: Callable,
         dependencies: Optional[Dict[str, Any]] = None,
     ) -> "FastBotBuilder":
-        """Добавить WebSocket handler"""
         return self._add_http_handler("WEBSOCKET", path, handler, dependencies or {})
 
     def create_depends(self, dependency_key: str):
-        """Создает зависимость FastAPI для указанного ключа"""
-
         def dependency(request: Request):
             if hasattr(request.app.state, "bot_instance"):
                 bot_instance = request.app.state.bot_instance
@@ -615,10 +615,9 @@ class FastBotBuilder:
 
         return Depends(dependency)
 
-    def _add_http_handler(
+    async def _add_http_handler(
         self, method: str, path: str, handler: Callable, dependencies: Dict[str, Any]
     ) -> "FastBotBuilder":
-        """Базовый метод для добавления HTTP handlers"""
         handler_config = HTTPHandlerConfig(
             method=method, path=path, handler=handler, dependencies=dependencies
         )
@@ -628,7 +627,6 @@ class FastBotBuilder:
         return self
 
     def add_http_router(self, router: APIRouter) -> "FastBotBuilder":
-        """Добавить готовый FastAPI роутер"""
         if not hasattr(self, "_http_routers"):
             self._http_routers = []
 
@@ -636,7 +634,7 @@ class FastBotBuilder:
         Logger.info(f"HTTP router added: {router.prefix if router.prefix else '/'}")
         return self
 
-    def _get_or_create_cen(self) -> ContextEngine:
+    async def _get_or_create_cen(self) -> Future[ContextEngine]:
         for dependency in self.dependency_container._dependencies.values():
             if isinstance(dependency, ContextEngine):
                 return dependency
