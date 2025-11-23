@@ -274,7 +274,7 @@ class TemplateEngine:
             template_data["reply_markup"] = reply_markup
 
         return template_data
-    
+
     async def render_html_template(
         self,
         template_name: str,
@@ -286,15 +286,21 @@ class TemplateEngine:
             rendered = await template.render_async(**(context or {}))
             return rendered
         except TemplateNotFound as e:
-            raise TemplateNotFoundError(f"HTML template not found: {template_name}") from e
+            raise TemplateNotFoundError(
+                f"HTML template not found: {template_name}"
+            ) from e
         except TemplateSyntaxError as e:
             raise TemplateSyntaxError(
                 f"Syntax error in HTML template {template_name}: {e}"
             ) from e
         except (TemplateRuntimeError, UndefinedError) as e:
-            raise TemplateRenderError(f"Error rendering HTML template {template_name}: {e}") from e
+            raise TemplateRenderError(
+                f"Error rendering HTML template {template_name}: {e}"
+            ) from e
         except Exception as e:
-            raise TemplateEngineError(f"Unexpected error in HTML template {template_name}: {e}") from e
+            raise TemplateEngineError(
+                f"Unexpected error in HTML template {template_name}: {e}"
+            ) from e
 
     async def generate_inline_keyboard(
         self, buttons: List[Dict[str, Any]], row_width: int = 3, **kwargs
@@ -406,7 +412,6 @@ class TemplateEngine:
             raise
 
     async def _get_template(self, template_name: str) -> Template:
-        """Получает шаблон из кэша или загружает его"""
         async with self._cache_lock:
             if template_name in self._template_cache:
                 return self._template_cache[template_name]
@@ -427,26 +432,22 @@ class TemplateEngine:
 
     @staticmethod
     def _truncate(value, length=100, end="..."):
-        """Обрезает текст до указанной длины"""
         if not isinstance(value, str):
             value = str(value)
         return value[:length] + (end if len(value) > length else "")
 
     @staticmethod
     def _markdown_escape(text: str) -> str:
-        """Экранирует специальные символы MarkdownV2"""
         escape_chars = r"_*[]()~`>#+-=|{}.!"
         return re.sub(f"([{re.escape(escape_chars)}])", r"\\\1", text)
 
     @staticmethod
     def _telegram_escape(text: str) -> str:
-        """Экранирует специальные символы для Telegram"""
         escape_chars = r"_*[]()~`>#+-=|{}.!"
         return re.sub(f"([{re.escape(escape_chars)}])", r"\\\1", text)
 
     @staticmethod
     def _plural_form(number: int, forms: List[str]) -> str:
-        """Выбирает правильную форму слова для числа"""
         if not forms or len(forms) < 3:
             return ""
 
